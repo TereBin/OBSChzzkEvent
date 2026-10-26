@@ -1,6 +1,6 @@
 # OBS Chzzk Alerts
 
-치지직 스트리머 스튜디오 리모컨의 팔로우 이벤트를 OBS 브라우저 소스로 전달하는 Windows용 OBS 플러그인입니다.
+치지직 스트리머 스튜디오 리모컨의 팔로우 이벤트를 OBS 전용 알림 소스로 전달하는 Windows용 OBS 플러그인입니다.
 
 일반 사용자를 위한 설치 파일과 사용 설명서는 [배포 저장소](https://github.com/TereBin/obs-chzzk-alerts-releases)에서 제공합니다. 이 저장소는 소스 코드, 프로토콜 구조와 개발 문서를 관리합니다.
 
@@ -11,10 +11,15 @@
 
 - 치지직 리모컨의 Socket.IO 팔로우 이벤트 감지
 - `FOLLOW_CHANNEL` 이벤트 검증과 중복 알림 방지
-- localhost HTTP/SSE를 통한 OBS 브라우저 소스 전달
-- 투명 배경의 팔로워 닉네임 텍스트 알림
+- localhost HTTP를 통한 OBS 전용 소스 전달
+- 문구, 글꼴, 색상, 배경, 외곽선, 그림자와 정렬 설정
+- 표시 시간, 페이드 인·아웃, 대기열과 중복 방지 설정
 - Chrome/Edge Manifest V3 확장 프로그램
 - Windows x64 설치 프로그램과 수동 설치 ZIP 생성
+
+## 저장소 역할
+
+이 저장소는 플러그인과 브라우저 중계 확장 프로그램의 소스, 빌드 설정과 기술 문서를 관리합니다. 일반 사용자는 소스를 직접 빌드할 필요 없이 [배포 저장소의 최신 릴리스](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)를 설치하면 됩니다.
 
 ## 아키텍처
 
@@ -24,17 +29,34 @@ CHZZK remote-control Socket.IO
   → isolated content-script relay
   → HTTP GET 127.0.0.1:21345/publish
   → OBS plugin local TCP server
-  → SSE 127.0.0.1:21345/events
-  → OBS browser source
+  → native CHZZK follow alert source
 ```
 
 구성 요소:
 
-- `src/chzzk-alert-server.*`: Qt Network 기반 localhost HTTP/SSE 중계 서버
+- `src/chzzk-alert-server.*`: Qt Network 기반 localhost HTTP 수신 서버
+- `src/chzzk-alert-source.*`: 전용 OBS 입력 소스, 텍스트 렌더링, 애니메이션과 대기열
 - `src/plugin-main.cpp`: OBS 모듈 수명 주기와 포트 소유권 관리
 - `data/browser-relay/websocket-hook.js`: 페이지 컨텍스트에서 WebSocket 수신 프레임 감시
 - `data/browser-relay/relay.js`: 검증된 팔로우 이벤트를 localhost로 전달
-- `data/browser-source/chzzk-alert.html`: SSE 이벤트를 텍스트 알림으로 렌더링
+
+## OBS 소스 설정
+
+`치지직 팔로우 알림`은 브라우저 소스가 아닌 네이티브 OBS 입력 소스입니다.
+
+| 설정 | 설명 |
+| --- | --- |
+| 알림 문구 | `{nickname}`을 팔로워 닉네임으로 치환 |
+| 글꼴·글자색 | GDI+ 텍스트 모양 설정 |
+| 배경 | 색상과 불투명도 설정 |
+| 외곽선·그림자 | 사용 여부, 색상, 크기·거리와 불투명도 설정 |
+| 정렬·크기 | 텍스트 정렬과 소스의 기본 너비·높이 설정 |
+| 표시 시간 | 완전히 보이는 시간 설정 |
+| 페이드 | 나타나고 사라지는 시간을 밀리초 단위로 설정 |
+| 최대 대기 알림 수 | 이벤트가 연속으로 들어올 때 보관할 대기열 크기 설정 |
+| 중복 방지 시간 | 같은 닉네임의 반복 알림을 무시할 시간 설정 |
+
+속성 화면의 `테스트 알림 표시` 버튼은 네트워크 연결 없이 렌더링과 애니메이션을 확인합니다.
 
 ## 치지직 이벤트 프로토콜
 
@@ -57,7 +79,6 @@ CHZZK remote-control Socket.IO
 플러그인은 IPv4 loopback의 `127.0.0.1:21345`에만 바인딩합니다.
 
 - `GET /publish?type=follow&nickname=<name>`: 팔로우 이벤트 발행
-- `GET /events`: OBS 브라우저 소스용 Server-Sent Events 스트림
 
 외부 서버나 클라우드 저장소를 사용하지 않습니다. 플러그인이 로드되지 않았거나 다른 프로세스가 포트를 점유하면 중계 서버 시작이 실패합니다.
 
@@ -112,7 +133,14 @@ node --check data/browser-relay/relay.js
 node -e "JSON.parse(require('fs').readFileSync('data/browser-relay/manifest.json', 'utf8'))"
 ```
 
-Release 빌드와 설치 트리는 GitHub Actions의 `Build Windows` 워크플로에서도 검증합니다.
+OBS가 실행 중일 때 로컬 전달 경로는 다음 요청으로 확인할 수 있습니다.
+
+```powershell
+Invoke-WebRequest -UseBasicParsing `
+  'http://127.0.0.1:21345/publish?type=follow&nickname=Integration%20Test'
+```
+
+정상 요청은 HTTP `204`를 반환합니다. Release 빌드와 설치 트리는 GitHub Actions의 `Build Windows` 워크플로에서도 검증합니다.
 
 ## 보안
 

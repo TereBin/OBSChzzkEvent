@@ -1,13 +1,27 @@
 #include "chzzk-alert-server.hpp"
+#include "chzzk-alert-source.hpp"
 
-#include <QJsonDocument>
 #include <QHostAddress>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QTcpServer>
 #include <QTcpSocket>
 
-#include <utility>
+namespace {
+constexpr auto kCorsHeader = "Access-Control-Allow-Origin: *\r\n";
+
+void sendResponse(QTcpSocket *socket, const char *status, bool cors = false)
+{
+	QByteArray response = "HTTP/1.1 ";
+	response += status;
+	response += "\r\n";
+	if (cors)
+		response += kCorsHeader;
+	response += "Content-Length: 0\r\nConnection: close\r\n\r\n";
+	socket->write(response);
+	socket->disconnectFromHost();
+}
+} // namespace
 
 ChzzkAlertServer::ChzzkAlertServer(QObject *parent) : QObject(parent), server_(new QTcpServer(this))
 {
@@ -31,9 +45,6 @@ bool ChzzkAlertServer::start(quint16 port)
 
 void ChzzkAlertServer::stop()
 {
-	for (QTcpSocket *client : std::as_const(clients_))
-		client->disconnectFromHost();
-	clients_.clear();
 	server_->close();
 	port_ = 0;
 }
@@ -43,7 +54,7 @@ void ChzzkAlertServer::acceptConnection()
 	while (server_->hasPendingConnections()) {
 		QTcpSocket *socket = server_->nextPendingConnection();
 		connect(socket, &QTcpSocket::readyRead, this, &ChzzkAlertServer::readRequest);
-		connect(socket, &QTcpSocket::disconnected, this, &ChzzkAlertServer::removeClient);
+		connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
 	}
 }
 
@@ -59,62 +70,25 @@ void ChzzkAlertServer::readRequest()
 
 	const QList<QByteArray> requestParts = requestLine.trimmed().split(' ');
 	if (requestParts.size() < 2) {
-		socket->disconnectFromHost();
+		sendResponse(socket, "400 Bad Request");
 		return;
 	}
 
+	const QByteArray &method = requestParts.at(0);
 	const QUrl requestUrl(QString::fromUtf8(requestParts.at(1)));
-	if (requestUrl.path() == QStringLiteral("/publish")) {
+	if (method == "GET" && requestUrl.path() == QStringLiteral("/publish")) {
 		const QUrlQuery query(requestUrl);
 		const QString type = query.queryItemValue(QStringLiteral("type"));
-		const QString nickname = query.queryItemValue(QStringLiteral("nickname"));
-		if (type == QStringLiteral("follow"))
-			publishFollow(nickname);
-		socket->write("HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n");
-		socket->disconnectFromHost();
-		return;
-	}
-
-	if (requestUrl.path() != QStringLiteral("/events")) {
-		socket->write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
-		socket->disconnectFromHost();
-		return;
-	}
-
-	sendHeaders(socket);
-	clients_.insert(socket);
-}
-
-void ChzzkAlertServer::removeClient()
-{
-	if (auto *socket = qobject_cast<QTcpSocket *>(sender()))
-		clients_.remove(socket);
-}
-
-void ChzzkAlertServer::sendHeaders(QTcpSocket *socket)
-{
-	socket->write("HTTP/1.1 200 OK\r\n"
-		      "Content-Type: text/event-stream\r\n"
-		      "Cache-Control: no-cache\r\n"
-		      "Connection: keep-alive\r\n"
-		      "Access-Control-Allow-Origin: *\r\n\r\n");
-	socket->flush();
-}
-
-void ChzzkAlertServer::publish(const QJsonObject &event)
-{
-	const QByteArray payload = "data: " + QJsonDocument(event).toJson(QJsonDocument::Compact) + "\n\n";
-	for (QTcpSocket *client : std::as_const(clients_)) {
-		if (client->state() == QAbstractSocket::ConnectedState) {
-			client->write(payload);
-			client->flush();
+		const QString nickname = query.queryItemValue(QStringLiteral("nickname")).trimmed();
+		if (type == QStringLiteral("follow") && !nickname.isEmpty()) {
+			publishFollowToAlertSources(nickname);
+			sendResponse(socket, "204 No Content", true);
+		} else {
+			sendResponse(socket, "400 Bad Request", true);
 		}
+		return;
 	}
-}
 
-void ChzzkAlertServer::publishFollow(const QString &nickname)
-{
-	publish({{QStringLiteral("type"), QStringLiteral("follow")},
-		 {QStringLiteral("nickname"), nickname}});
+	sendResponse(socket, "404 Not Found");
 }
 

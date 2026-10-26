@@ -30,6 +30,8 @@ target_sources(
   PRIVATE
     src/chzzk-alert-server.cpp
     src/chzzk-alert-server.hpp
+    src/chzzk-alert-source.cpp
+    src/chzzk-alert-source.hpp
     src/plugin-main.cpp
 )
 

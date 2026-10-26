@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0"
+  #define MyAppVersion "0.2.0"
 #endif
 #ifndef BuildRoot
   #define BuildRoot "..\release\Release\obs-chzzk-alerts"
@@ -43,6 +43,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: "{#BuildRoot}\bin\64bit\obs-chzzk-alerts.dll"; DestDir: "{code:GetObsPath}\obs-plugins\64bit"; Flags: ignoreversion restartreplace uninsrestartdelete
 Source: "{#BuildRoot}\data\*"; DestDir: "{code:GetObsPath}\data\obs-plugins\obs-chzzk-alerts"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: filesandordirs; Name: "{code:GetObsPath}\data\obs-plugins\obs-chzzk-alerts\browser-source"
 
 [Run]
 Filename: "{code:GetObsPath}\bin\64bit\{#MyAppExeName}"; Description: "{cm:LaunchProgram,OBS Studio}"; WorkingDir: "{code:GetObsPath}\bin\64bit"; Flags: nowait postinstall skipifsilent runasoriginaluser

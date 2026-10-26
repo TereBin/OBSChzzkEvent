@@ -1,4 +1,5 @@
 #include "chzzk-alert-server.hpp"
+#include "chzzk-alert-source.hpp"
 
 #include <obs-module.h>
 #include <plugin-support.h>
@@ -21,6 +22,7 @@ const char *obs_module_description(void)
 
 bool obs_module_load(void)
 {
+	registerChzzkAlertSource();
 	g_alertServer = std::make_unique<ChzzkAlertServer>();
 	if (!g_alertServer->start(kAlertServerPort)) {
 		obs_log(LOG_ERROR, "could not listen on 127.0.0.1:%u", kAlertServerPort);

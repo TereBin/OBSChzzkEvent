@@ -4,6 +4,18 @@
 
 일반 사용자를 위한 설치 파일과 사용 설명서는 [배포 저장소](https://github.com/TereBin/obs-chzzk-alerts-releases)에서 제공합니다. 이 저장소는 소스 코드, 프로토콜 구조와 개발 문서를 관리합니다.
 
+- 배포 패키지: [OBS Chzzk Alerts Releases](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)
+- 소스 저장소: [OBS Chzzk Alerts](https://github.com/TereBin/obs-chzzk-alerts)
+
+## 기능
+
+- 치지직 리모컨의 Socket.IO 팔로우 이벤트 감지
+- `FOLLOW_CHANNEL` 이벤트 검증과 중복 알림 방지
+- localhost HTTP/SSE를 통한 OBS 브라우저 소스 전달
+- 투명 배경의 팔로워 닉네임 텍스트 알림
+- Chrome/Edge Manifest V3 확장 프로그램
+- Windows x64 설치 프로그램과 수동 설치 ZIP 생성
+
 ## 아키텍처
 
 ```text
@@ -90,9 +102,34 @@ cmake -S . -B build_x64 -G "Visual Studio 17 2022" -A x64 `
 
 릴리스 설치 파일은 현재 코드 서명되지 않았습니다. 배포 시 설치 파일, 수동 설치 ZIP과 `SHA256SUMS.txt`를 함께 게시합니다.
 
+## 테스트
+
+브라우저 확장 프로그램의 JavaScript와 JSON 매니페스트는 다음과 같이 확인할 수 있습니다.
+
+```powershell
+node --check data/browser-relay/websocket-hook.js
+node --check data/browser-relay/relay.js
+node -e "JSON.parse(require('fs').readFileSync('data/browser-relay/manifest.json', 'utf8'))"
+```
+
+Release 빌드와 설치 트리는 GitHub Actions의 `Build Windows` 워크플로에서도 검증합니다.
+
+## 보안
+
+- HTTP 서버는 외부 인터페이스가 아닌 `127.0.0.1`에만 바인딩합니다.
+- 확장 프로그램은 치지직 스튜디오 리모컨 URL에서만 실행합니다.
+- 치지직 로그인 쿠키, WebSocket 인증값과 전체 이벤트 JSON은 OBS로 전달하지 않습니다.
+- 별도의 외부 서버, 계정 데이터베이스 또는 원격 로그 수집 기능을 사용하지 않습니다.
+
 ## 범위
 
 현재는 팔로우 이벤트만 지원합니다. 구독과 후원은 치지직 자체 알림 기능을 사용하며 이 프로젝트에서 처리하지 않습니다.
+
+## 문제 보고
+
+오류 보고와 기능 제안은 [OBS Chzzk Alerts Issues](https://github.com/TereBin/obs-chzzk-alerts/issues)를 이용해 주세요. 문제 발생 직후 OBS 로그에서 `[obs-chzzk-alerts]`가 포함된 줄과 Chrome/Edge 개발자 도구의 오류를 함께 제공하면 원인 확인에 도움이 됩니다.
+
+WebSocket URL의 `auth` 값, 치지직 쿠키 또는 전체 HAR 파일은 공개 이슈에 첨부하지 마세요.
 
 ## 라이선스
 

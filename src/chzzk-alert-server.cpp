@@ -1,25 +1,25 @@
 #include "chzzk-alert-server.hpp"
 #include "chzzk-alert-source.hpp"
+#include "chzzk-alert-request.hpp"
 
 #include <QHostAddress>
-#include <QUrl>
-#include <QUrlQuery>
+#include <QTimer>
 #include <QTcpServer>
 #include <QTcpSocket>
 
 namespace {
-constexpr auto kCorsHeader = "Access-Control-Allow-Origin: *\r\n";
+constexpr qint64 kMaxRequestLineBytes = 16 * 1024;
+constexpr int kRequestTimeoutMs = 5000;
+constexpr int kResponseDrainMs = 20;
 
-void sendResponse(QTcpSocket *socket, const char *status, bool cors = false)
+void sendResponse(QTcpSocket *socket, const AlertRequest &request)
 {
-	QByteArray response = "HTTP/1.1 ";
-	response += status;
-	response += "\r\n";
-	if (cors)
-		response += kCorsHeader;
-	response += "Content-Length: 0\r\nConnection: close\r\n\r\n";
-	socket->write(response);
-	socket->disconnectFromHost();
+	socket->setProperty("handled", true);
+	socket->readAll();
+	socket->write(alertResponse(request));
+	socket->flush();
+	// Give the peer time to receive a rejection before closing with unread input.
+	QTimer::singleShot(kResponseDrainMs, socket, &QTcpSocket::disconnectFromHost);
 }
 } // namespace
 
@@ -53,42 +53,34 @@ void ChzzkAlertServer::acceptConnection()
 {
 	while (server_->hasPendingConnections()) {
 		QTcpSocket *socket = server_->nextPendingConnection();
+		socket->setReadBufferSize(kMaxRequestLineBytes + 1);
 		connect(socket, &QTcpSocket::readyRead, this, &ChzzkAlertServer::readRequest);
 		connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+		QTimer::singleShot(kRequestTimeoutMs, socket, &QTcpSocket::abort);
 	}
 }
 
 void ChzzkAlertServer::readRequest()
 {
 	auto *socket = qobject_cast<QTcpSocket *>(sender());
-	if (!socket || !socket->canReadLine())
+	if (!socket)
 		return;
-
-	const QByteArray requestLine = socket->readLine();
-	while (socket->canReadLine())
-		socket->readLine();
-
-	const QList<QByteArray> requestParts = requestLine.trimmed().split(' ');
-	if (requestParts.size() < 2) {
-		sendResponse(socket, "400 Bad Request");
+	if (socket->property("handled").toBool()) {
+		socket->readAll();
 		return;
 	}
-
-	const QByteArray &method = requestParts.at(0);
-	const QUrl requestUrl(QString::fromUtf8(requestParts.at(1)));
-	if (method == "GET" && requestUrl.path() == QStringLiteral("/publish")) {
-		const QUrlQuery query(requestUrl);
-		const QString type = query.queryItemValue(QStringLiteral("type"));
-		const QString nickname = query.queryItemValue(QStringLiteral("nickname")).trimmed();
-		if (type == QStringLiteral("follow") && !nickname.isEmpty()) {
-			publishFollowToAlertSources(nickname);
-			sendResponse(socket, "204 No Content", true);
-		} else {
-			sendResponse(socket, "400 Bad Request", true);
-		}
+	if (!socket->canReadLine()) {
+		if (socket->bytesAvailable() >= kMaxRequestLineBytes)
+			sendResponse(socket, {"414 URI Too Long", false, {}});
 		return;
 	}
-
-	sendResponse(socket, "404 Not Found");
+	const QByteArray line = socket->readLine(kMaxRequestLineBytes + 1);
+	if (!line.endsWith('\n')) {
+		sendResponse(socket, {"414 URI Too Long", false, {}});
+		return;
+	}
+	const AlertRequest request = parseAlertRequest(line);
+	if (!request.nickname.isEmpty())
+		publishFollowToAlertSources(request.nickname);
+	sendResponse(socket, request);
 }
-

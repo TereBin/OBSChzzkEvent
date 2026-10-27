@@ -17,7 +17,7 @@ std::unique_ptr<ChzzkAlertServer> g_alertServer;
 
 const char *obs_module_description(void)
 {
-	return "Relays CHZZK remote-control follow events to an OBS browser source.";
+	return "Displays CHZZK follow events with text, images and sound in a native OBS source.";
 }
 
 bool obs_module_load(void)

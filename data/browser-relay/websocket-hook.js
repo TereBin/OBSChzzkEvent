@@ -1,6 +1,7 @@
 (() => {
   const NativeWebSocket = window.WebSocket;
   if (!NativeWebSocket || NativeWebSocket.__obsChzzkWrapped) return;
+  const RELAY_SOURCE = "obs-chzzk-websocket-relay";
 
   function inspectFrame(frame) {
     if (typeof frame !== "string" || !frame.startsWith("42")) return;
@@ -14,11 +15,13 @@
         : packet[1];
       if (!event || event.newsFeedType !== "FOLLOW_CHANNEL") return;
 
-      const nickname = event.user?.nickname?.trim();
+      const nickname = typeof event.user?.nickname === "string"
+        ? event.user.nickname.trim()
+        : "";
       if (!nickname) return;
 
       window.postMessage({
-        source: "obs-chzzk-websocket-relay",
+        source: RELAY_SOURCE,
         type: "follow",
         nickname,
         newsFeedNo: event.newsFeedNo ?? null,

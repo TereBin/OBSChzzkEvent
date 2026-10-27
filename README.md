@@ -7,6 +7,17 @@
 - 배포 패키지: [OBS Chzzk Alerts Releases](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)
 - 소스 저장소: [OBS Chzzk Alerts](https://github.com/TereBin/obs-chzzk-alerts)
 
+## 0.5.0 변경 사항
+
+현재 소스 버전은 `0.5.0`, 중계 확장 프로그램은 `0.2.2`입니다. 공개 설치 파일의 버전은 [배포 저장소의 릴리스 페이지](https://github.com/TereBin/obs-chzzk-alerts-releases/releases)에서 확인할 수 있습니다.
+
+- 기본 알림음 3종을 동봉하고 기존 사용자 음원 선택을 유지합니다.
+- 소스 크기 조회를 원자적 스냅샷으로 분리해 설정 변경 중 동기 재진입으로 발생하던 종료를 수정했습니다.
+- 선택된 FFmpeg 음원의 표시 참조와 오디오 캡처 수명을 관리해 부모 소스의 믹서·모니터링으로 소리가 전달되도록 수정했습니다.
+- 설정·대기열·화면 자원·HTTP 요청 처리를 분리하고 OBS 참조를 자동 해제하도록 정리했습니다.
+- 브라우저의 중복 기록을 제한하고 연결 실패 시 재시도를 허용하며, 닉네임의 공백·더하기 기호를 구분해 전달합니다.
+- 상태·오디오·HTTP·브라우저 회귀 테스트를 추가하고 Windows CI에서 실행합니다.
+
 ## 기능
 
 - 치지직 리모컨의 Socket.IO 팔로우 이벤트 감지
@@ -15,7 +26,7 @@
 - PNG, JPG, WebP, GIF 등 이미지 미디어 렌더링
 - 미디어의 왼쪽·오른쪽·위·아래·배경 배치와 크기·불투명도 설정
 - 알림마다 애니메이션 GIF를 처음부터 다시 재생하는 옵션
-- 알림마다 로컬 음원 재생 및 음량 설정
+- 동봉된 기본 알림음 3종 또는 사용자 음원 재생 및 음량 설정
 - 문구, 글꼴, 색상, 배경, 외곽선, 그림자와 정렬 설정
 - 표시 시간, 페이드 인·아웃, 대기열과 중복 방지 설정
 - Chrome/Edge Manifest V3 확장 프로그램
@@ -39,7 +50,13 @@ CHZZK remote-control Socket.IO
 구성 요소:
 
 - `src/chzzk-alert-server.*`: Qt Network 기반 localhost HTTP 수신 서버
-- `src/chzzk-alert-source.*`: 전용 OBS 입력 소스, 텍스트 렌더링, 애니메이션과 대기열
+- `src/chzzk-alert-request.*`: HTTP 요청 검증과 응답 생성
+- `src/chzzk-alert-source.*`: OBS 입력 소스, 렌더링과 구성 요소 연결
+- `src/chzzk-alert-settings.*`: 저장 설정 키, 기본값, 속성 UI와 런타임 설정 읽기
+- `src/chzzk-alert-model.hpp`: 대기열, 중복 방지, 페이드와 재진입 가능한 크기 조회
+- `src/chzzk-alert-visual.hpp`: 비공개 텍스트·이미지 소스 및 불투명도 필터 수명 관리
+- `src/chzzk-alert-audio.*`: 음원 선택, 표시 상태와 부모 소스로의 오디오 전달
+- `src/chzzk-obs-resource.hpp`: OBS 데이터·소스 참조의 자동 해제
 - `src/plugin-main.cpp`: OBS 모듈 수명 주기와 포트 소유권 관리
 - `data/browser-relay/websocket-hook.js`: 치지직 스튜디오의 일반 탭과 팝업 페이지 컨텍스트에서 WebSocket 수신 프레임 감시
 - `data/browser-relay/relay.js`: 검증된 팔로우 이벤트를 localhost로 전달
@@ -56,7 +73,7 @@ CHZZK remote-control Socket.IO
 | 미디어 불투명도 | 알림 전체 페이드와 별개로 미디어의 최대 불투명도 설정 |
 | 원본 비율 유지 | 지정 영역 안에 원본 비율을 유지해 맞춤 |
 | GIF 재시작 | 새 알림이 시작될 때 애니메이션을 첫 프레임부터 재생 |
-| 알림 소리 | 로컬 음원 사용 여부, 파일과 음량 설정 |
+| 알림 소리 | 기본 알림음 3종 또는 사용자 파일 선택과 음량 설정 |
 | 알림 문구 | `{nickname}`을 팔로워 닉네임으로 치환 |
 | 글꼴·글자색 | GDI+ 텍스트 모양 설정 |
 | 배경 | 색상과 불투명도 설정 |
@@ -71,7 +88,9 @@ CHZZK remote-control Socket.IO
 
 미디어는 OBS의 내장 `image_source`를 비공개 자식 소스로 생성해 렌더링합니다. 텍스트와 미디어에는 각각 `color_filter`가 적용되며, 알림의 페이드 값과 사용자가 지정한 미디어 불투명도를 함께 반영합니다. 왼쪽·오른쪽·위·아래 배치는 미디어 영역만큼 텍스트 extents를 줄이고, 배경 배치는 전체 소스 크기 안에 미디어를 맞춘 뒤 텍스트를 위에 그립니다.
 
-알림 소리는 OBS의 내장 `ffmpeg_source`를 비공개 자식 소스로 생성하고 복합 소스의 오디오로 믹싱합니다. 새 알림이 시작될 때 음원을 처음부터 재생하며 반복 재생하지 않습니다.
+알림 소리는 OBS의 내장 `ffmpeg_source`를 비공개 소스로 생성합니다. 선택된 음원에는 보조 표시 참조(`obs_source_inc_showing`)를 연결해 FFmpeg의 재생 조건을 충족시키고, 캡처한 오디오를 `obs_source_output_audio`로 부모 알림 소스에 전달합니다. 믹서·모니터링·출력 트랙은 부모 소스에서 처리하며, 음원을 선택하는 것만으로 재생하지 않습니다. 새 알림이 시작될 때 처음부터 한 번 재생합니다.
+
+설정 갱신·렌더링·대기열 변경은 소스 잠금으로 직렬화합니다. OBS와 다른 플러그인의 신호 처리에서 크기 조회가 동기적으로 재진입할 수 있으므로 `get_width`와 `get_height`는 별도 원자적 스냅샷을 읽습니다. 오디오 콜백은 이 잠금을 획득하지 않으며, 현재 선택된 음원의 데이터만 전달합니다.
 
 ## 치지직 이벤트 프로토콜
 
@@ -156,6 +175,16 @@ Invoke-WebRequest -UseBasicParsing `
 ```
 
 정상 요청은 HTTP `204`를 반환합니다. Release 빌드와 설치 트리는 GitHub Actions의 `Build Windows` 워크플로에서도 검증합니다.
+
+자동 회귀 테스트는 선택적으로 빌드합니다.
+
+```powershell
+cmake --preset windows-x64 -DENABLE_ALERT_TESTS=ON
+cmake --build --preset windows-x64 --config Release
+ctest --test-dir build_x64 -C Release --output-on-failure
+```
+
+테스트는 대기열·페이드·크기 재진입, OBS API 대역을 사용한 음원 표시 참조·재생·오디오 전달·해제, 실제 loopback 소켓의 분할 요청과 잘못된 요청, 브라우저 팔로우 프레임 파싱과 중복 방지를 검증합니다. 브라우저 테스트에는 Node.js가 필요합니다. 실제 OBS의 믹서·모니터링과 다른 플러그인과의 상호작용은 OBS에서 별도로 확인해야 합니다.
 
 ## 보안
 

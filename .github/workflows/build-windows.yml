@@ -15,11 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
-        run: cmake --preset windows-x64
+        run: cmake --preset windows-x64 -DENABLE_ALERT_TESTS=ON
       - name: Build
         run: cmake --build --preset windows-x64 --config Release
       - name: Install
         run: cmake --install build_x64 --config Release --prefix release/Release
+      - name: Regression tests
+        run: ctest --test-dir build_x64 -C Release --output-on-failure
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:

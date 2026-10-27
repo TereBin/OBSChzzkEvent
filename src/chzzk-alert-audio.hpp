@@ -8,7 +8,7 @@
 
 class ChzzkAlertAudio {
 public:
-	ChzzkAlertAudio();
+	explicit ChzzkAlertAudio(obs_source_t *outputSource);
 	~ChzzkAlertAudio();
 
 	ChzzkAlertAudio(const ChzzkAlertAudio &) = delete;
@@ -16,13 +16,14 @@ public:
 
 	void update(bool enabled, const std::string &file, int volumePercent);
 	void play();
-	void enumerate(obs_source_t *parent, obs_source_enum_proc_t callback, void *param) const;
-	bool render(uint64_t *timestamp, obs_source_audio_mix *audioOutput, uint32_t mixers, size_t channels) const;
 
 private:
+	static void captureAudio(void *param, obs_source_t *source, const audio_data *audioData, bool muted);
+	void outputAudio(const audio_data *audioData, bool muted) const;
 	bool available() const;
 
 	obs_source_t *source = nullptr;
+	obs_source_t *outputSource = nullptr;
 	std::string file;
 	bool enabled = false;
 };

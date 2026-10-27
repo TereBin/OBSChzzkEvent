@@ -80,7 +80,7 @@ void releaseChild(obs_source_t *&child, obs_source_t *&filter)
 }
 
 struct AlertSource {
-	explicit AlertSource(obs_data_t *settings, obs_source_t *source) : owner(source)
+	explicit AlertSource(obs_data_t *settings, obs_source_t *source) : alertAudio(source)
 	{
 		text = obs_source_create_private(kTextSourceId, "OBS Chzzk Alerts Text", nullptr);
 		shadowText = obs_source_create_private(kTextSourceId, "OBS Chzzk Alerts Shadow", nullptr);
@@ -249,18 +249,6 @@ struct AlertSource {
 	{
 		std::lock_guard lock(mutex);
 		return height + (shadow ? static_cast<uint32_t>(shadowDistance) : 0);
-	}
-
-	void enumActiveSources(obs_source_enum_proc_t callback, void *param)
-	{
-		std::lock_guard lock(mutex);
-		alertAudio.enumerate(owner, callback, param);
-	}
-
-	bool renderAudio(uint64_t *timestamp, obs_source_audio_mix *audioOutput, uint32_t mixers, size_t channels)
-	{
-		std::lock_guard lock(mutex);
-		return alertAudio.render(timestamp, audioOutput, mixers, channels);
 	}
 
 private:
@@ -438,7 +426,6 @@ private:
 	obs_source_t *shadowOpacity = nullptr;
 	obs_source_t *media = nullptr;
 	obs_source_t *mediaOpacity = nullptr;
-	obs_source_t *owner = nullptr;
 	ChzzkAlertAudio alertAudio;
 	obs_data_t *font = nullptr;
 	std::mutex mutex;
@@ -516,17 +503,6 @@ uint32_t sourceWidth(void *data)
 uint32_t sourceHeight(void *data)
 {
 	return static_cast<AlertSource *>(data)->outputHeight();
-}
-
-void sourceEnumActive(void *data, obs_source_enum_proc_t callback, void *param)
-{
-	static_cast<AlertSource *>(data)->enumActiveSources(callback, param);
-}
-
-bool sourceAudioRender(void *data, uint64_t *timestamp, obs_source_audio_mix *audioOutput, uint32_t mixers,
-		       size_t channels, size_t)
-{
-	return static_cast<AlertSource *>(data)->renderAudio(timestamp, audioOutput, mixers, channels);
 }
 
 bool testButtonClicked(obs_properties_t *, obs_property_t *, void *data)
@@ -653,8 +629,7 @@ void registerChzzkAlertSource()
 	obs_source_info info = {};
 	info.id = kSourceId;
 	info.type = OBS_SOURCE_TYPE_INPUT;
-	info.output_flags =
-		OBS_SOURCE_VIDEO | OBS_SOURCE_AUDIO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_COMPOSITE | OBS_SOURCE_SRGB;
+	info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_AUDIO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_SRGB;
 	info.icon_type = OBS_ICON_TYPE_TEXT;
 	info.get_name = sourceName;
 	info.create = sourceCreate;
@@ -666,8 +641,6 @@ void registerChzzkAlertSource()
 	info.video_render = sourceRender;
 	info.get_width = sourceWidth;
 	info.get_height = sourceHeight;
-	info.audio_render = sourceAudioRender;
-	info.enum_active_sources = sourceEnumActive;
 	obs_register_source(&info);
 }
 

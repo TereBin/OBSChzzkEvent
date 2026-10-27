@@ -653,7 +653,8 @@ void registerChzzkAlertSource()
 	obs_source_info info = {};
 	info.id = kSourceId;
 	info.type = OBS_SOURCE_TYPE_INPUT;
-	info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_COMPOSITE | OBS_SOURCE_SRGB;
+	info.output_flags =
+		OBS_SOURCE_VIDEO | OBS_SOURCE_AUDIO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_COMPOSITE | OBS_SOURCE_SRGB;
 	info.icon_type = OBS_ICON_TYPE_TEXT;
 	info.get_name = sourceName;
 	info.create = sourceCreate;

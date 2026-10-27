@@ -41,7 +41,7 @@ CHZZK remote-control Socket.IO
 - `src/chzzk-alert-server.*`: Qt Network 기반 localhost HTTP 수신 서버
 - `src/chzzk-alert-source.*`: 전용 OBS 입력 소스, 텍스트 렌더링, 애니메이션과 대기열
 - `src/plugin-main.cpp`: OBS 모듈 수명 주기와 포트 소유권 관리
-- `data/browser-relay/websocket-hook.js`: 페이지 컨텍스트에서 WebSocket 수신 프레임 감시
+- `data/browser-relay/websocket-hook.js`: 치지직 스튜디오의 일반 탭과 팝업 페이지 컨텍스트에서 WebSocket 수신 프레임 감시
 - `data/browser-relay/relay.js`: 검증된 팔로우 이벤트를 localhost로 전달
 
 ## OBS 소스 설정

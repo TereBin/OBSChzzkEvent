@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.3.0"
+  #define MyAppVersion "0.3.1"
 #endif
 #ifndef BuildRoot
   #define BuildRoot "..\release\Release\obs-chzzk-alerts"
@@ -46,9 +46,6 @@ Source: "{#BuildRoot}\data\*"; DestDir: "{code:GetObsPath}\data\obs-plugins\obs-
 
 [InstallDelete]
 Type: filesandordirs; Name: "{code:GetObsPath}\data\obs-plugins\obs-chzzk-alerts\browser-source"
-
-[Run]
-Filename: "{code:GetObsPath}\bin\64bit\{#MyAppExeName}"; Description: "{cm:LaunchProgram,OBS Studio}"; WorkingDir: "{code:GetObsPath}\bin\64bit"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [Code]
 var

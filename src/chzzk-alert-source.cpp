@@ -15,6 +15,7 @@
 namespace {
 constexpr auto kSourceId = "obs_chzzk_follow_alert";
 constexpr auto kTextSourceId = "text_gdiplus";
+constexpr auto kImageSourceId = "image_source";
 constexpr auto kOpacityFilterId = "color_filter";
 
 constexpr auto kTemplate = "message_template";
@@ -37,6 +38,15 @@ constexpr auto kFadeInMs = "fade_in_ms";
 constexpr auto kFadeOutMs = "fade_out_ms";
 constexpr auto kMaxQueue = "max_queue";
 constexpr auto kDedupeSeconds = "dedupe_seconds";
+constexpr auto kMediaEnabled = "media_enabled";
+constexpr auto kMediaFile = "media_file";
+constexpr auto kMediaPosition = "media_position";
+constexpr auto kMediaWidth = "media_width";
+constexpr auto kMediaHeight = "media_height";
+constexpr auto kMediaMargin = "media_margin";
+constexpr auto kMediaOpacity = "media_opacity";
+constexpr auto kMediaKeepAspect = "media_keep_aspect";
+constexpr auto kMediaRestart = "media_restart";
 
 struct AlertSource;
 std::mutex g_sourcesMutex;
@@ -70,6 +80,7 @@ struct AlertSource {
 	{
 		text = obs_source_create_private(kTextSourceId, "OBS Chzzk Alerts Text", nullptr);
 		shadowText = obs_source_create_private(kTextSourceId, "OBS Chzzk Alerts Shadow", nullptr);
+		media = obs_source_create_private(kImageSourceId, "OBS Chzzk Alerts Media", nullptr);
 		if (text) {
 			textOpacity = obs_source_create_private(kOpacityFilterId, "OBS Chzzk Alerts Text Opacity", nullptr);
 			if (textOpacity)
@@ -80,6 +91,11 @@ struct AlertSource {
 				obs_source_create_private(kOpacityFilterId, "OBS Chzzk Alerts Shadow Opacity", nullptr);
 			if (shadowOpacity)
 				obs_source_filter_add(shadowText, shadowOpacity);
+		}
+		if (media) {
+			mediaOpacity = obs_source_create_private(kOpacityFilterId, "OBS Chzzk Alerts Media Opacity", nullptr);
+			if (mediaOpacity)
+				obs_source_filter_add(media, mediaOpacity);
 		}
 
 		update(settings);
@@ -96,6 +112,7 @@ struct AlertSource {
 		}
 		releaseChild(text, textOpacity);
 		releaseChild(shadowText, shadowOpacity);
+		releaseChild(media, mediaOpacity);
 		if (font)
 			obs_data_release(font);
 	}
@@ -122,6 +139,15 @@ struct AlertSource {
 		fadeOutSeconds = static_cast<float>(obs_data_get_int(settings, kFadeOutMs)) / 1000.0f;
 		maxQueue = static_cast<size_t>(std::max<int64_t>(1, obs_data_get_int(settings, kMaxQueue)));
 		dedupeSeconds = static_cast<int>(obs_data_get_int(settings, kDedupeSeconds));
+		mediaEnabled = obs_data_get_bool(settings, kMediaEnabled);
+		mediaFile = obs_data_get_string(settings, kMediaFile);
+		mediaPosition = obs_data_get_string(settings, kMediaPosition);
+		mediaWidth = static_cast<uint32_t>(obs_data_get_int(settings, kMediaWidth));
+		mediaHeight = static_cast<uint32_t>(obs_data_get_int(settings, kMediaHeight));
+		mediaMargin = static_cast<uint32_t>(obs_data_get_int(settings, kMediaMargin));
+		mediaOpacityPercent = static_cast<int>(obs_data_get_int(settings, kMediaOpacity));
+		mediaKeepAspect = obs_data_get_bool(settings, kMediaKeepAspect);
+		mediaRestart = obs_data_get_bool(settings, kMediaRestart);
 
 		obs_data_t *fontValue = obs_data_get_obj(settings, kFont);
 		if (fontValue) {
@@ -130,6 +156,7 @@ struct AlertSource {
 			font = fontValue;
 		}
 
+		updateMediaChild();
 		if (active)
 			updateTextChildren(currentNickname);
 		if (opacityStep >= 0)
@@ -190,14 +217,21 @@ struct AlertSource {
 		std::lock_guard lock(mutex);
 		if (!active || opacityStep <= 0)
 			return;
+		const Layout layout = calculateLayout();
+		renderMedia(layout);
 		if (shadow && shadowText) {
 			gs_matrix_push();
-			gs_matrix_translate3f(static_cast<float>(shadowDistance), static_cast<float>(shadowDistance), 0.0f);
+			gs_matrix_translate3f(layout.textX + static_cast<float>(shadowDistance),
+					      layout.textY + static_cast<float>(shadowDistance), 0.0f);
 			obs_source_video_render(shadowText);
 			gs_matrix_pop();
 		}
-		if (text)
+		if (text) {
+			gs_matrix_push();
+			gs_matrix_translate3f(layout.textX, layout.textY, 0.0f);
 			obs_source_video_render(text);
+			gs_matrix_pop();
+		}
 	}
 
 	uint32_t outputWidth()
@@ -212,6 +246,52 @@ struct AlertSource {
 	}
 
 private:
+	struct Layout {
+		float textX = 0.0f;
+		float textY = 0.0f;
+		uint32_t textWidth = 1;
+		uint32_t textHeight = 1;
+		float mediaX = 0.0f;
+		float mediaY = 0.0f;
+		uint32_t mediaWidth = 0;
+		uint32_t mediaHeight = 0;
+	};
+
+	bool hasMedia() const { return mediaEnabled && media && !mediaFile.empty(); }
+
+	Layout calculateLayout() const
+	{
+		Layout layout;
+		layout.textWidth = width;
+		layout.textHeight = height;
+		if (!hasMedia())
+			return layout;
+
+		layout.mediaWidth = std::min(mediaWidth, width);
+		layout.mediaHeight = std::min(mediaHeight, height);
+		if (mediaPosition == "left" || mediaPosition == "right") {
+			const uint32_t reserved = std::min(width - 1, layout.mediaWidth + mediaMargin);
+			layout.textWidth = width - reserved;
+			layout.mediaY = static_cast<float>(height - layout.mediaHeight) / 2.0f;
+			if (mediaPosition == "left")
+				layout.textX = static_cast<float>(reserved);
+			else
+				layout.mediaX = static_cast<float>(width - layout.mediaWidth);
+		} else if (mediaPosition == "top" || mediaPosition == "bottom") {
+			const uint32_t reserved = std::min(height - 1, layout.mediaHeight + mediaMargin);
+			layout.textHeight = height - reserved;
+			layout.mediaX = static_cast<float>(width - layout.mediaWidth) / 2.0f;
+			if (mediaPosition == "top")
+				layout.textY = static_cast<float>(reserved);
+			else
+				layout.mediaY = static_cast<float>(height - layout.mediaHeight);
+		} else {
+			layout.mediaWidth = width;
+			layout.mediaHeight = height;
+		}
+		return layout;
+	}
+
 	void startNextAlert()
 	{
 		currentNickname = std::move(queue.front());
@@ -219,6 +299,8 @@ private:
 		elapsed = 0.0f;
 		active = true;
 		updateTextChildren(currentNickname);
+		if (hasMedia() && mediaRestart)
+			obs_source_media_restart(media);
 	}
 
 	void pruneRecentlySeen(std::chrono::steady_clock::time_point now)
@@ -234,14 +316,17 @@ private:
 
 	void updateTextChildren(const std::string &nickname)
 	{
+		const Layout layout = calculateLayout();
 		const std::string message = replaceNickname(messageTemplate, nickname);
 		updateTextChild(text, message, textColor, backgroundColor, backgroundOpacity, outline, outlineSize,
-				outlineColor);
-		updateTextChild(shadowText, message, shadowColor, 0, 0, false, 1, 0);
+				outlineColor, layout.textWidth, layout.textHeight);
+		updateTextChild(shadowText, message, shadowColor, 0, 0, false, 1, 0, layout.textWidth,
+				layout.textHeight);
 	}
 
 	void updateTextChild(obs_source_t *child, const std::string &message, uint32_t color, uint32_t bkColor,
-			     int bkOpacity, bool useOutline, int useOutlineSize, uint32_t useOutlineColor)
+			     int bkOpacity, bool useOutline, int useOutlineSize, uint32_t useOutlineColor,
+			     uint32_t textWidth, uint32_t textHeight)
 	{
 		if (!child)
 			return;
@@ -260,11 +345,50 @@ private:
 		obs_data_set_int(settings, "outline_color", useOutlineColor);
 		obs_data_set_int(settings, "outline_opacity", 100);
 		obs_data_set_bool(settings, "extents", true);
-		obs_data_set_int(settings, "extents_cx", width);
-		obs_data_set_int(settings, "extents_cy", height);
+		obs_data_set_int(settings, "extents_cx", textWidth);
+		obs_data_set_int(settings, "extents_cy", textHeight);
 		obs_data_set_bool(settings, "extents_wrap", true);
 		obs_source_update(child, settings);
 		obs_data_release(settings);
+	}
+
+	void updateMediaChild()
+	{
+		if (!media)
+			return;
+		obs_data_t *settings = obs_data_create();
+		obs_data_set_string(settings, "file", mediaFile.c_str());
+		obs_data_set_bool(settings, "unload", false);
+		obs_source_update(media, settings);
+		obs_data_release(settings);
+	}
+
+	void renderMedia(const Layout &layout)
+	{
+		if (!hasMedia() || layout.mediaWidth == 0 || layout.mediaHeight == 0)
+			return;
+		const uint32_t sourceWidth = obs_source_get_width(media);
+		const uint32_t sourceHeight = obs_source_get_height(media);
+		if (sourceWidth == 0 || sourceHeight == 0)
+			return;
+
+		float scaleX = static_cast<float>(layout.mediaWidth) / static_cast<float>(sourceWidth);
+		float scaleY = static_cast<float>(layout.mediaHeight) / static_cast<float>(sourceHeight);
+		float x = layout.mediaX;
+		float y = layout.mediaY;
+		if (mediaKeepAspect) {
+			const float scale = std::min(scaleX, scaleY);
+			scaleX = scale;
+			scaleY = scale;
+			x += (static_cast<float>(layout.mediaWidth) - static_cast<float>(sourceWidth) * scale) / 2.0f;
+			y += (static_cast<float>(layout.mediaHeight) - static_cast<float>(sourceHeight) * scale) / 2.0f;
+		}
+
+		gs_matrix_push();
+		gs_matrix_translate3f(x, y, 0.0f);
+		gs_matrix_scale3f(scaleX, scaleY, 1.0f);
+		obs_source_video_render(media);
+		gs_matrix_pop();
 	}
 
 	void setOpacity(float alpha, bool force = false)
@@ -276,6 +400,7 @@ private:
 		const double opacity = static_cast<double>(step) * 5.0;
 		updateOpacityFilter(textOpacity, opacity);
 		updateOpacityFilter(shadowOpacity, opacity * static_cast<double>(shadowOpacityPercent) / 100.0);
+		updateOpacityFilter(mediaOpacity, opacity * static_cast<double>(mediaOpacityPercent) / 100.0);
 	}
 
 	static void updateOpacityFilter(obs_source_t *filter, double opacity)
@@ -292,6 +417,8 @@ private:
 	obs_source_t *textOpacity = nullptr;
 	obs_source_t *shadowText = nullptr;
 	obs_source_t *shadowOpacity = nullptr;
+	obs_source_t *media = nullptr;
+	obs_source_t *mediaOpacity = nullptr;
 	obs_data_t *font = nullptr;
 	std::mutex mutex;
 	std::deque<std::string> queue;
@@ -299,17 +426,23 @@ private:
 	std::string currentNickname;
 	std::string messageTemplate;
 	std::string alignment;
+	std::string mediaFile;
+	std::string mediaPosition;
 	uint32_t textColor = 0xFFFFFF;
 	uint32_t backgroundColor = 0;
 	uint32_t outlineColor = 0;
 	uint32_t shadowColor = 0;
 	uint32_t width = 800;
 	uint32_t height = 200;
+	uint32_t mediaWidth = 160;
+	uint32_t mediaHeight = 160;
+	uint32_t mediaMargin = 20;
 	int backgroundOpacity = 55;
 	int outlineSize = 3;
 	int shadowOpacityPercent = 70;
 	int shadowDistance = 4;
 	int dedupeSeconds = 30;
+	int mediaOpacityPercent = 100;
 	int opacityStep = -1;
 	size_t maxQueue = 20;
 	float displaySeconds = 5.0f;
@@ -319,6 +452,9 @@ private:
 	bool outline = true;
 	bool shadow = true;
 	bool active = false;
+	bool mediaEnabled = false;
+	bool mediaKeepAspect = true;
+	bool mediaRestart = true;
 };
 
 const char *sourceName(void *)
@@ -373,6 +509,30 @@ obs_properties_t *sourceProperties(void *data)
 	obs_properties_t *properties = obs_properties_create();
 	obs_properties_add_button2(properties, "test_alert", obs_module_text("Source.TestAlert"), testButtonClicked,
 				   data);
+
+	obs_properties_t *mediaProperties = obs_properties_create();
+	obs_properties_add_bool(mediaProperties, kMediaEnabled, obs_module_text("Source.Media.Enabled"));
+	obs_properties_add_path(mediaProperties, kMediaFile, obs_module_text("Source.Media.File"), OBS_PATH_FILE,
+				"Image Files (*.bmp *.tga *.png *.jpeg *.jpg *.gif *.psd *.webp);;All Files (*.*)",
+				nullptr);
+	obs_property_t *mediaPosition =
+		obs_properties_add_list(mediaProperties, kMediaPosition, obs_module_text("Source.Media.Position"),
+					OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(mediaPosition, obs_module_text("Source.Media.Position.Left"), "left");
+	obs_property_list_add_string(mediaPosition, obs_module_text("Source.Media.Position.Right"), "right");
+	obs_property_list_add_string(mediaPosition, obs_module_text("Source.Media.Position.Top"), "top");
+	obs_property_list_add_string(mediaPosition, obs_module_text("Source.Media.Position.Bottom"), "bottom");
+	obs_property_list_add_string(mediaPosition, obs_module_text("Source.Media.Position.Background"), "background");
+	obs_properties_add_int(mediaProperties, kMediaWidth, obs_module_text("Source.Media.Width"), 1, 3840, 1);
+	obs_properties_add_int(mediaProperties, kMediaHeight, obs_module_text("Source.Media.Height"), 1, 2160, 1);
+	obs_properties_add_int(mediaProperties, kMediaMargin, obs_module_text("Source.Media.Margin"), 0, 500, 1);
+	obs_properties_add_int_slider(mediaProperties, kMediaOpacity, obs_module_text("Source.Media.Opacity"), 0, 100,
+				      1);
+	obs_properties_add_bool(mediaProperties, kMediaKeepAspect, obs_module_text("Source.Media.KeepAspect"));
+	obs_properties_add_bool(mediaProperties, kMediaRestart, obs_module_text("Source.Media.Restart"));
+	obs_properties_add_group(properties, "media", obs_module_text("Source.Media.Group"), OBS_GROUP_NORMAL,
+				 mediaProperties);
+
 	obs_properties_add_text(properties, kTemplate, obs_module_text("Source.MessageTemplate"), OBS_TEXT_DEFAULT);
 	obs_properties_add_font(properties, kFont, obs_module_text("Source.Font"));
 	obs_properties_add_color(properties, kTextColor, obs_module_text("Source.TextColor"));
@@ -432,6 +592,15 @@ void sourceDefaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, kFadeOutMs, 300);
 	obs_data_set_default_int(settings, kMaxQueue, 20);
 	obs_data_set_default_int(settings, kDedupeSeconds, 30);
+	obs_data_set_default_bool(settings, kMediaEnabled, false);
+	obs_data_set_default_string(settings, kMediaFile, "");
+	obs_data_set_default_string(settings, kMediaPosition, "left");
+	obs_data_set_default_int(settings, kMediaWidth, 160);
+	obs_data_set_default_int(settings, kMediaHeight, 160);
+	obs_data_set_default_int(settings, kMediaMargin, 20);
+	obs_data_set_default_int(settings, kMediaOpacity, 100);
+	obs_data_set_default_bool(settings, kMediaKeepAspect, true);
+	obs_data_set_default_bool(settings, kMediaRestart, true);
 }
 } // namespace
 

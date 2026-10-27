@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.4.0"
+  #define MyAppVersion "0.4.1"
 #endif
 #ifndef BuildRoot
   #define BuildRoot "..\release\Release\obs-chzzk-alerts"
@@ -48,6 +48,10 @@ Source: "{#BuildRoot}\data\*"; DestDir: "{code:GetObsPath}\data\obs-plugins\obs-
 Type: filesandordirs; Name: "{code:GetObsPath}\data\obs-plugins\obs-chzzk-alerts\browser-source"
 
 [Code]
+const
+  MinimumLiveEditorVersionMS = 3;        { 0.3 }
+  MinimumLiveEditorVersionLS = 2 * 65536; { 2.0 }
+
 var
   CachedObsPath: string;
 
@@ -81,6 +85,18 @@ begin
   Result := CachedObsPath;
 end;
 
+function IsLiveEditorOlderThan032(const FileName: string): Boolean;
+var
+  VersionMS: Cardinal;
+  VersionLS: Cardinal;
+begin
+  Result := False;
+  if GetVersionNumbers(FileName, VersionMS, VersionLS) then
+    Result := (VersionMS < MinimumLiveEditorVersionMS) or
+      ((VersionMS = MinimumLiveEditorVersionMS) and
+       (VersionLS < MinimumLiveEditorVersionLS));
+end;
+
 function InitializeSetup(): Boolean;
 var
   OldPluginPath: string;
@@ -94,6 +110,6 @@ begin
   end;
 
   OldPluginPath := AddBackslash(CachedObsPath) + 'obs-plugins\64bit\obs-live-editor.dll';
-  if FileExists(OldPluginPath) then
+  if FileExists(OldPluginPath) and IsLiveEditorOlderThan032(OldPluginPath) then
     MsgBox('OBS Live Editor도 설치되어 있습니다. 포트 충돌을 방지하려면 Live Editor 0.3.2 이상을 사용해 주세요.', mbInformation, MB_OK);
 end;

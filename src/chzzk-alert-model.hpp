@@ -83,6 +83,29 @@ struct AlertTiming {
 	}
 };
 
+class AlertSceneGate {
+public:
+	enum class Action { Hidden, Pause, Visible, Resume };
+	Action update(bool visible, bool playing)
+	{
+		if (!visible) {
+			if (playing && !suspended_) {
+				suspended_ = true;
+				return Action::Pause;
+			}
+			return Action::Hidden;
+		}
+		if (suspended_) {
+			suspended_ = false;
+			return Action::Resume;
+		}
+		return Action::Visible;
+	}
+
+private:
+	bool suspended_ = false;
+};
+
 // Size callbacks may be re-entered from OBS signals while the owner's mutex is held.
 class AlertSizeSnapshot {
 public:

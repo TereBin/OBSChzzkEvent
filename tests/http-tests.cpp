@@ -1,12 +1,11 @@
 #include "check.hpp"
 #include "chzzk-alert-request.hpp"
 #include "chzzk-alert-server.hpp"
+#include "chzzk-alert-connection.hpp"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QHostAddress>
 #include <QTcpSocket>
-#include <QUrl>
-#include <QUrlQuery>
 
 static int published = 0;
 static QString received;
@@ -41,6 +40,11 @@ int main(int argc, char **argv)
 	CHECK(parseAlertRequest("GET /publish?type=donation&nickname=x HTTP/1.1\r\n").nickname.isEmpty());
 	CHECK(QByteArray(parseAlertRequest("GET /unknown HTTP/1.1\r\n").status).startsWith("404"));
 	CHECK(QByteArray(parseAlertRequest("garbage\r\n").status).startsWith("400"));
+	CHECK(parseAlertRequest("OPTIONS /publish HTTP/1.1\r\n").kind == AlertRequest::Kind::Preflight);
+	CHECK(alertResponse(parseAlertRequest("OPTIONS /heartbeat HTTP/1.1\r\n"))
+		      .contains("Allow-Private-Network: true"));
+	CHECK(parseAlertRequest("GET /heartbeat?session=browser&pending=8&error=http HTTP/1.1\r\n").pending == 8);
+	CHECK(QByteArray(parseAlertRequest("GET /heartbeat HTTP/1.1\r\n").status).startsWith("400"));
 
 	ChzzkAlertServer server;
 	CHECK(server.start(0) && server.port() != 0);
@@ -58,6 +62,21 @@ int main(int argc, char **argv)
 	until("split request response", [&] { return socket.bytesAvailable() > 0; });
 	CHECK(socket.readAll().startsWith("HTTP/1.1 204"));
 	CHECK(received == "Split Name");
+	auto transact = [&](const QByteArray &line) {
+		QTcpSocket client;
+		client.connectToHost(QHostAddress::LocalHost, server.port());
+		until("client connect", [&] { return client.state() == QAbstractSocket::ConnectedState; });
+		client.write(line + "\r\n\r\n");
+		until("client response", [&] { return client.bytesAvailable() > 0; });
+		return client.readAll();
+	};
+	CHECK(transact("GET /publish?type=follow&nickname=Same&eventId=feed%3A42 HTTP/1.1").startsWith("HTTP/1.1 204"));
+	CHECK(published == 2);
+	CHECK(transact("GET /publish?type=follow&nickname=Same&eventId=feed%3A42 HTTP/1.1").startsWith("HTTP/1.1 204"));
+	CHECK(published == 2); // A lost acknowledgement may safely be retried.
+	CHECK(transact("GET /heartbeat?session=test-bridge&pending=4 HTTP/1.1").startsWith("HTTP/1.1 204"));
+	CHECK(transact("GET /status HTTP/1.1").contains("\"pending\":4"));
+	CHECK(alertConnectionState().snapshot().bridges == 1);
 
 	QTcpSocket oversized;
 	QObject::connect(&oversized, &QTcpSocket::errorOccurred, &app,
@@ -67,7 +86,7 @@ int main(int argc, char **argv)
 	oversized.write(QByteArray(17 * 1024, 'x'));
 	until("oversized response", [&] { return oversized.bytesAvailable() > 0; });
 	CHECK(oversized.readAll().startsWith("HTTP/1.1 414"));
-	CHECK(published == 1);
+	CHECK(published == 2);
 	server.stop();
 	CHECK(server.port() == 0);
 	std::cout << "HTTP parsing and fragmented socket checks passed\n";

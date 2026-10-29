@@ -7,9 +7,25 @@
 - 배포 패키지: [OBS Chzzk Alerts Releases](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)
 - 소스 저장소: [OBS Chzzk Alerts](https://github.com/TereBin/obs-chzzk-alerts)
 
+## 0.6.0 변경 사항
+
+플러그인 버전은 `0.6.0`, 중계 확장 프로그램은 `0.3.0`입니다. 두 구성 요소를 함께 업데이트하고 확장 프로그램과 리모컨 페이지를 새로고침해야 연결 상태와 자동 재시도가 적용됩니다.
+
+- 소스 설정을 바꿔도 OBS 믹서 음량을 덮어쓰지 않습니다. 플러그인 음량은 오디오 샘플에 별도로 적용합니다.
+- 내부 음원 캐시는 최근 선택한 4개로 제한하며, 제외된 음원은 콜백을 제거한 뒤 해제합니다.
+- 전송 실패 시 최대 100개를 대기시키고, 리모컨 페이지가 열린 동안 최대 5분간 자동 재시도합니다. 재시도 간격은 0.5초부터 최대 10초까지 늘어납니다.
+- 이벤트 ID를 함께 전달하고 OBS에서 중복 수신을 제거합니다. 응답이 유실돼 재전송돼도 같은 알림을 다시 발행하지 않습니다.
+- OBS의 `독 > 치지직 알림 연결 상태`에서 중계 서버 상태, 브라우저 중계 연결, 마지막 수신 시각, 전송 대기 수와 최근 오류를 확인할 수 있습니다.
+- 다른 장면에 있거나 소스를 숨긴 동안은 알림을 기존 대기열에 보관합니다. 다시 방송 화면에서 활성화되면 순서대로 표시합니다. 재생 중 장면을 벗어나면 남은 표시 시간과 소리를 일시 정지하고 돌아왔을 때 이어서 재생합니다. 별도 옵션은 없습니다.
+- HTTP 소켓 처리와 이벤트 처리를 분리하고, 제한값·중복 기록·화면 배치·연결 독의 수명 관리를 별도 구성 요소로 정리했습니다. 이벤트 ID 만료에는 단조 시계를 사용합니다.
+
+연결 독은 1초마다 갱신되며 브라우저는 약 5초마다 heartbeat를 보냅니다. 90초 동안 응답이 없으면 연결 대기로 표시합니다. 이 상태는 브라우저와 로컬 OBS 사이의 연결 확인이며, 치지직 로그인이나 팔로우 WebSocket의 정상 동작을 보장하는 표시는 아닙니다.
+
+전송 대기열은 리모컨 페이지 메모리에 보관하므로 페이지를 닫거나 새로고침하면 사라집니다. OBS에 도착한 숨김 알림은 기존 `최대 대기 알림 수` 설정을 따르며, OBS 종료 후에도 영구 보관하는 기능은 아닙니다.
+
 ## 0.5.0 변경 사항
 
-현재 소스 버전은 `0.5.0`, 중계 확장 프로그램은 `0.2.2`입니다. 공개 설치 파일의 버전은 [배포 저장소의 릴리스 페이지](https://github.com/TereBin/obs-chzzk-alerts-releases/releases)에서 확인할 수 있습니다.
+`0.5.0`에 동봉된 중계 확장 프로그램은 `0.2.2`입니다. 공개 설치 파일의 버전은 [배포 저장소의 릴리스 페이지](https://github.com/TereBin/obs-chzzk-alerts-releases/releases)에서 확인할 수 있습니다.
 
 - 기본 알림음 3종을 동봉하고 기존 사용자 음원 선택을 유지합니다.
 - 소스 크기 조회를 원자적 스냅샷으로 분리해 설정 변경 중 동기 재진입으로 발생하던 종료를 수정했습니다.
@@ -51,9 +67,14 @@ CHZZK remote-control Socket.IO
 
 - `src/chzzk-alert-server.*`: Qt Network 기반 localhost HTTP 수신 서버
 - `src/chzzk-alert-request.*`: HTTP 요청 검증과 응답 생성
+- `src/chzzk-alert-protocol.hpp`: 로컬 포트, 요청 크기와 연결 제한값
+- `src/chzzk-alert-event-history.hpp`: 단조 시계 기반 이벤트 ID 만료와 최대 4,096개 중복 기록
+- `src/chzzk-alert-connection.*`: heartbeat, 마지막 팔로우 수신과 연결 상태 스냅샷
+- `src/chzzk-alert-status-dock.*`: OBS 연결 상태 독과 UI 타이머 수명 관리
 - `src/chzzk-alert-source.*`: OBS 입력 소스, 렌더링과 구성 요소 연결
 - `src/chzzk-alert-settings.*`: 저장 설정 키, 기본값, 속성 UI와 런타임 설정 읽기
 - `src/chzzk-alert-model.hpp`: 대기열, 중복 방지, 페이드와 재진입 가능한 크기 조회
+- `src/chzzk-alert-layout.hpp`: OBS 자원에 의존하지 않는 텍스트·미디어 배치 계산
 - `src/chzzk-alert-visual.hpp`: 비공개 텍스트·이미지 소스 및 불투명도 필터 수명 관리
 - `src/chzzk-alert-audio.*`: 음원 선택, 표시 상태와 부모 소스로의 오디오 전달
 - `src/chzzk-obs-resource.hpp`: OBS 데이터·소스 참조의 자동 해제
@@ -112,7 +133,10 @@ CHZZK remote-control Socket.IO
 
 플러그인은 IPv4 loopback의 `127.0.0.1:21345`에만 바인딩합니다.
 
-- `GET /publish?type=follow&nickname=<name>`: 팔로우 이벤트 발행
+- `GET /publish?type=follow&nickname=<name>&eventId=<id>`: 팔로우 이벤트 발행. `eventId`는 이전 확장 프로그램 호환성을 위해 선택 사항이며, 지정된 ID는 최대 10분·4,096개 범위에서 중복 제거합니다. 정상·중복 수신 모두 `204`로 응답합니다.
+- `GET /heartbeat?session=<id>&pending=<count>&error=<code>`: 브라우저 중계 상태 갱신. 정상 응답은 `204`입니다.
+- `GET /status`: 로컬 연결 상태를 JSON으로 확인합니다. 닉네임이나 인증 정보는 포함하지 않습니다.
+- `OPTIONS`: 위 경로에 대한 CORS·로컬 네트워크 사전 요청을 처리합니다.
 
 외부 서버나 클라우드 저장소를 사용하지 않습니다. 플러그인이 로드되지 않았거나 다른 프로세스가 포트를 점유하면 중계 서버 시작이 실패합니다.
 
@@ -120,6 +144,7 @@ CHZZK remote-control Socket.IO
 
 - Windows 10/11 x64
 - OBS Studio x64
+- 연결 상태 독은 OBS frontend API와 Qt Widgets를 사용합니다. 개발용 OBS 의존성은 `31.1.1` 기준이며, 로컬 설치 검증은 OBS `32.2.2`에서 수행했습니다.
 - Chrome 또는 Edge의 Manifest V3 확장 프로그램
 - OBS Live Editor와 함께 사용할 경우 `0.3.2` 이상
 
@@ -139,6 +164,8 @@ cmake --build --preset windows-x64 --config Release
 cmake --install build_x64 --config Release --prefix release/Release
 ./installer/Build-Installer.ps1 -Configuration Release
 ```
+
+설치 파일·ZIP·SHA-256 목록을 한 번에 생성하려면 빌드 후 `./installer/Build-Package.ps1 -Configuration Release`를 실행합니다. 출력 위치는 `release`이며, 기존 빌드 결과에서 패키지를 생성하고 GitHub에 게시하지는 않습니다. Inno Setup 자동 탐색이 안 되면 `-IsccPath`로 `ISCC.exe` 경로를 지정할 수 있습니다.
 
 OBS 플러그인 템플릿의 의존성 캐시를 재사용하려면 구성 시 `OBS_PLUGIN_DEPENDENCIES_DIR`을 지정할 수 있습니다.
 
@@ -184,13 +211,21 @@ cmake --build --preset windows-x64 --config Release
 ctest --test-dir build_x64 -C Release --output-on-failure
 ```
 
-테스트는 대기열·페이드·크기 재진입, OBS API 대역을 사용한 음원 표시 참조·재생·오디오 전달·해제, 실제 loopback 소켓의 분할 요청과 잘못된 요청, 브라우저 팔로우 프레임 파싱과 중복 방지를 검증합니다. 브라우저 테스트에는 Node.js가 필요합니다. 실제 OBS의 믹서·모니터링과 다른 플러그인과의 상호작용은 OBS에서 별도로 확인해야 합니다.
+테스트는 다섯 그룹으로 구성합니다.
+
+- `alert-model`: 대기열·숨김 장면 게이트·페이드·크기 재진입과 미디어 배치
+- `alert-audio`: OBS API 대역으로 음원 표시 참조·독립 음량·일시 정지·캐시 해제 검증
+- `alert-http`: 실제 loopback 소켓의 분할 요청·거부 응답·이벤트 중복 ACK·상태 JSON
+- `alert-connection`: 연결 만료·세션 수 제한·마지막 응답 유지·중복 기록의 용량과 TTL 경계
+- `browser-relay`: Socket.IO 파싱·자동 재시도·타임아웃·대기열 만료와 중복 방지
+
+브라우저 테스트에는 Node.js가 필요합니다. 실제 OBS의 믹서·모니터링, 장면 전환과 다른 플러그인과의 상호작용은 OBS에서 별도로 확인해야 합니다.
 
 ## 보안
 
 - HTTP 서버는 외부 인터페이스가 아닌 `127.0.0.1`에만 바인딩합니다.
-- 확장 프로그램은 치지직 스튜디오 리모컨 URL에서만 실행합니다.
-- 치지직 로그인 쿠키, WebSocket 인증값과 전체 이벤트 JSON은 OBS로 전달하지 않습니다.
+- 확장 프로그램은 치지직 스트리머 스튜디오 페이지에서 실행하며 `FOLLOW_CHANNEL` 프레임만 중계합니다.
+- 치지직 로그인 쿠키, WebSocket 인증값과 전체 이벤트 JSON은 OBS로 전달하지 않습니다. 닉네임, 중복 방지용 이벤트 ID와 중계 상태만 로컬 OBS로 전달합니다.
 - 별도의 외부 서버, 계정 데이터베이스 또는 원격 로그 수집 기능을 사용하지 않습니다.
 
 ## 범위

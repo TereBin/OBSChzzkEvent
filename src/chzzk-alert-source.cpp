@@ -2,6 +2,7 @@
 #include "chzzk-alert-audio.hpp"
 #include "chzzk-alert-settings.hpp"
 #include "chzzk-alert-model.hpp"
+#include "chzzk-alert-layout.hpp"
 #include "chzzk-alert-visual.hpp"
 
 #include <obs-module.h>
@@ -23,7 +24,7 @@ std::mutex g_sourcesMutex;
 std::vector<AlertSource *> g_sources;
 
 struct AlertSource {
-	explicit AlertSource(obs_data_t *settings, obs_source_t *source) : alertAudio(source)
+	explicit AlertSource(obs_data_t *settings, obs_source_t *source) : owner(source), alertAudio(source)
 	{
 		update(settings);
 		setOpacity(0.0f, true);
@@ -65,6 +66,13 @@ struct AlertSource {
 	void tick(float seconds)
 	{
 		std::lock_guard lock(mutex);
+		const auto visibility = sceneGate.update(obs_source_active(owner), active);
+		if (visibility == AlertSceneGate::Action::Pause)
+			alertAudio.pause();
+		if (visibility == AlertSceneGate::Action::Hidden || visibility == AlertSceneGate::Action::Pause)
+			return;
+		if (visibility == AlertSceneGate::Action::Resume)
+			alertAudio.resume();
 		if (!active) {
 			if (queue.empty())
 				return;
@@ -87,7 +95,7 @@ struct AlertSource {
 		std::lock_guard lock(mutex);
 		if (!active || opacityStep <= 0)
 			return;
-		const Layout layout = calculateLayout();
+		const AlertLayout layout = calculateLayout();
 		renderMedia(layout);
 		if (config.shadow && shadowText) {
 			gs_matrix_push();
@@ -108,50 +116,13 @@ struct AlertSource {
 	uint32_t outputHeight() const { return outputSize.height(); }
 
 private:
-	struct Layout {
-		float textX = 0.0f;
-		float textY = 0.0f;
-		uint32_t textWidth = 1;
-		uint32_t textHeight = 1;
-		float mediaX = 0.0f;
-		float mediaY = 0.0f;
-		uint32_t mediaWidth = 0;
-		uint32_t mediaHeight = 0;
-	};
-
 	bool hasMedia() const { return config.mediaEnabled && media && !config.mediaFile.empty(); }
 
-	Layout calculateLayout() const
+	AlertLayout calculateLayout() const
 	{
-		Layout layout;
-		layout.textWidth = config.width;
-		layout.textHeight = config.height;
-		if (!hasMedia())
-			return layout;
-
-		layout.mediaWidth = std::min(config.mediaWidth, config.width);
-		layout.mediaHeight = std::min(config.mediaHeight, config.height);
-		if (config.mediaPosition == "left" || config.mediaPosition == "right") {
-			const uint32_t reserved = std::min(config.width - 1, layout.mediaWidth + config.mediaMargin);
-			layout.textWidth = config.width - reserved;
-			layout.mediaY = static_cast<float>(config.height - layout.mediaHeight) / 2.0f;
-			if (config.mediaPosition == "left")
-				layout.textX = static_cast<float>(reserved);
-			else
-				layout.mediaX = static_cast<float>(config.width - layout.mediaWidth);
-		} else if (config.mediaPosition == "top" || config.mediaPosition == "bottom") {
-			const uint32_t reserved = std::min(config.height - 1, layout.mediaHeight + config.mediaMargin);
-			layout.textHeight = config.height - reserved;
-			layout.mediaX = static_cast<float>(config.width - layout.mediaWidth) / 2.0f;
-			if (config.mediaPosition == "top")
-				layout.textY = static_cast<float>(reserved);
-			else
-				layout.mediaY = static_cast<float>(config.height - layout.mediaHeight);
-		} else {
-			layout.mediaWidth = config.width;
-			layout.mediaHeight = config.height;
-		}
-		return layout;
+		return calculateAlertLayout(config.width, config.height, hasMedia() ? config.mediaWidth : 0,
+					    hasMedia() ? config.mediaHeight : 0, config.mediaMargin,
+					    config.mediaPosition);
 	}
 
 	void startNextAlert()
@@ -167,7 +138,7 @@ private:
 
 	void updateTextChildren(const std::string &nickname)
 	{
-		const Layout layout = calculateLayout();
+		const AlertLayout layout = calculateLayout();
 		const std::string message = formatAlertMessage(config.messageTemplate, nickname);
 		updateTextChild(text.get(), message, config.textColor, config.backgroundColor, config.backgroundOpacity,
 				config.outline, config.outlineSize, config.outlineColor, layout.textWidth,
@@ -213,7 +184,7 @@ private:
 		obs_source_update(media.get(), settings.get());
 	}
 
-	void renderMedia(const Layout &layout)
+	void renderMedia(const AlertLayout &layout)
 	{
 		if (!hasMedia() || layout.mediaWidth == 0 || layout.mediaHeight == 0)
 			return;
@@ -255,6 +226,7 @@ private:
 
 	// State must outlive child cleanup: OBS signals can re-enter size queries during release.
 	AlertSettings config;
+	obs_source_t *owner = nullptr;
 	std::mutex mutex;
 	AlertSizeSnapshot outputSize;
 	AlertQueue queue;
@@ -262,6 +234,7 @@ private:
 	int opacityStep = -1;
 	float elapsed = 0.0f;
 	bool active = false;
+	AlertSceneGate sceneGate;
 	AlertVisual text{kTextSourceId, "OBS Chzzk Alerts Text", "OBS Chzzk Alerts Text Opacity"};
 	AlertVisual shadowText{kTextSourceId, "OBS Chzzk Alerts Shadow", "OBS Chzzk Alerts Shadow Opacity"};
 	AlertVisual media{kImageSourceId, "OBS Chzzk Alerts Media", "OBS Chzzk Alerts Media Opacity"};

@@ -1,5 +1,6 @@
 #include "chzzk-alert-server.hpp"
 #include "chzzk-alert-source.hpp"
+#include "chzzk-alert-status-dock.hpp"
 
 #include <obs-module.h>
 #include <plugin-support.h>
@@ -11,7 +12,6 @@ OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 OBS_MODULE_AUTHOR("OBS Chzzk Alerts contributors")
 
 namespace {
-constexpr quint16 kAlertServerPort = 21345;
 std::unique_ptr<ChzzkAlertServer> g_alertServer;
 } // namespace
 
@@ -24,18 +24,20 @@ bool obs_module_load(void)
 {
 	registerChzzkAlertSource();
 	g_alertServer = std::make_unique<ChzzkAlertServer>();
-	if (!g_alertServer->start(kAlertServerPort)) {
-		obs_log(LOG_ERROR, "could not listen on 127.0.0.1:%u", kAlertServerPort);
+	if (!g_alertServer->start()) {
+		obs_log(LOG_ERROR, "could not listen on 127.0.0.1:%u", AlertProtocol::port);
 		g_alertServer.reset();
 		return false;
 	}
 
-	obs_log(LOG_INFO, "plugin loaded (version %s, port %u)", PLUGIN_VERSION, kAlertServerPort);
+	obs_log(LOG_INFO, "plugin loaded (version %s, port %u)", PLUGIN_VERSION, AlertProtocol::port);
+	registerAlertStatusDock();
 	return true;
 }
 
 void obs_module_unload(void)
 {
+	unregisterAlertStatusDock();
 	g_alertServer.reset();
 	obs_log(LOG_INFO, "plugin unloaded");
 }

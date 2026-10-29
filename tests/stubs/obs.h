@@ -33,6 +33,8 @@ void obs_source_release(obs_source_t *);
 void obs_source_set_volume(obs_source_t *, float);
 void obs_source_media_restart(obs_source_t *);
 void obs_source_media_stop(obs_source_t *);
+void obs_source_media_play_pause(obs_source_t *, bool);
+bool obs_source_active(const obs_source_t *);
 void obs_source_inc_showing(obs_source_t *);
 void obs_source_dec_showing(obs_source_t *);
 void obs_source_add_audio_capture_callback(obs_source_t *, obs_source_audio_capture_t, void *);

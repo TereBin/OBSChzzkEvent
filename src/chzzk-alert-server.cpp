@@ -1,17 +1,16 @@
 #include "chzzk-alert-server.hpp"
 #include "chzzk-alert-source.hpp"
 #include "chzzk-alert-request.hpp"
+#include "chzzk-alert-connection.hpp"
 
 #include <QHostAddress>
 #include <QTimer>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 namespace {
-constexpr qint64 kMaxRequestLineBytes = 16 * 1024;
-constexpr int kRequestTimeoutMs = 5000;
-constexpr int kResponseDrainMs = 20;
-
 void sendResponse(QTcpSocket *socket, const AlertRequest &request)
 {
 	socket->setProperty("handled", true);
@@ -19,7 +18,7 @@ void sendResponse(QTcpSocket *socket, const AlertRequest &request)
 	socket->write(alertResponse(request));
 	socket->flush();
 	// Give the peer time to receive a rejection before closing with unread input.
-	QTimer::singleShot(kResponseDrainMs, socket, &QTcpSocket::disconnectFromHost);
+	QTimer::singleShot(AlertProtocol::responseDrainMs, socket, &QTcpSocket::disconnectFromHost);
 }
 } // namespace
 
@@ -40,6 +39,7 @@ bool ChzzkAlertServer::start(quint16 port)
 	if (!server_->listen(QHostAddress::LocalHost, port))
 		return false;
 	port_ = server_->serverPort();
+	alertConnectionState().setListening(true);
 	return true;
 }
 
@@ -47,16 +47,17 @@ void ChzzkAlertServer::stop()
 {
 	server_->close();
 	port_ = 0;
+	alertConnectionState().setListening(false);
 }
 
 void ChzzkAlertServer::acceptConnection()
 {
 	while (server_->hasPendingConnections()) {
 		QTcpSocket *socket = server_->nextPendingConnection();
-		socket->setReadBufferSize(kMaxRequestLineBytes + 1);
+		socket->setReadBufferSize(AlertProtocol::maxRequestLineBytes + 1);
 		connect(socket, &QTcpSocket::readyRead, this, &ChzzkAlertServer::readRequest);
 		connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
-		QTimer::singleShot(kRequestTimeoutMs, socket, &QTcpSocket::abort);
+		QTimer::singleShot(AlertProtocol::requestTimeoutMs, socket, &QTcpSocket::abort);
 	}
 }
 
@@ -70,17 +71,32 @@ void ChzzkAlertServer::readRequest()
 		return;
 	}
 	if (!socket->canReadLine()) {
-		if (socket->bytesAvailable() >= kMaxRequestLineBytes)
+		if (socket->bytesAvailable() >= AlertProtocol::maxRequestLineBytes)
 			sendResponse(socket, {"414 URI Too Long", false, {}});
 		return;
 	}
-	const QByteArray line = socket->readLine(kMaxRequestLineBytes + 1);
+	const QByteArray line = socket->readLine(AlertProtocol::maxRequestLineBytes + 1);
 	if (!line.endsWith('\n')) {
 		sendResponse(socket, {"414 URI Too Long", false, {}});
 		return;
 	}
-	const AlertRequest request = parseAlertRequest(line);
-	if (!request.nickname.isEmpty())
-		publishFollowToAlertSources(request.nickname);
+	AlertRequest request = parseAlertRequest(line);
+	handleRequest(request);
 	sendResponse(socket, request);
+}
+
+void ChzzkAlertServer::handleRequest(AlertRequest &request)
+{
+	if (request.kind == AlertRequest::Kind::Follow && eventHistory_.accept(request.eventId)) {
+		publishFollowToAlertSources(request.nickname);
+		alertConnectionState().receivedFollow();
+	} else if (request.kind == AlertRequest::Kind::Heartbeat) {
+		alertConnectionState().heartbeat(request.session, request.pending, request.error);
+	} else if (request.kind == AlertRequest::Kind::Status) {
+		const auto state = alertConnectionState().snapshot();
+		QJsonObject body{{"listening", state.listening},   {"bridges", state.bridges},
+				 {"pending", state.pending},       {"lastContact", state.lastContact},
+				 {"lastFollow", state.lastFollow}, {"lastError", state.lastError}};
+		request.body = QJsonDocument(body).toJson(QJsonDocument::Compact);
+	}
 }

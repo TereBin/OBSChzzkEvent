@@ -315,10 +315,10 @@ void registerChzzkAlertSource()
 	obs_register_source(&info);
 }
 
-void publishFollowToAlertSources(const QString &nickname)
+void publishFollowToAlertSources(const QString &nickname, bool isTest)
 {
 	const std::string utf8 = nickname.toUtf8().constData();
 	std::lock_guard lock(g_sourcesMutex);
 	for (AlertSource *source : g_sources)
-		source->enqueue(utf8);
+		source->enqueue(utf8, isTest);
 }

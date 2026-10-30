@@ -8,6 +8,7 @@ inline constexpr qint64 maxRequestLineBytes = 16 * 1024;
 inline constexpr int requestTimeoutMs = 5000;
 inline constexpr int responseDrainMs = 20;
 inline constexpr int maxEventIdLength = 256;
+inline constexpr int maxTestNicknameLength = 80;
 inline constexpr int maxSessionLength = 128;
 inline constexpr int maxPending = 100;
 inline constexpr int maxBridges = 32;

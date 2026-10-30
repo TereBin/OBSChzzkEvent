@@ -7,6 +7,19 @@
 - 배포 패키지: [OBS Chzzk Alerts Releases](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)
 - 소스 저장소: [OBS Chzzk Alerts](https://github.com/TereBin/obs-chzzk-alerts)
 
+## 0.6.1 변경 사항
+
+플러그인 버전은 `0.6.1`, 동봉된 확장 프로그램은 `0.4.0`입니다. 업데이트 후 OBS를 다시 실행하고 확장 프로그램 관리 화면에서 새로고침해야 테스트 팝업이 적용됩니다.
+
+- 확장 프로그램의 도구 모음 아이콘에서 OBS 연결 확인과 테스트 알림 전송을 지원합니다. 치지직 리모컨이 닫혀 있어도 사용할 수 있습니다.
+- 테스트 닉네임을 직접 입력하고 HTTP `204` 응답으로 서버 수신을 확인합니다. 소스가 없는 경우나 숨겨진 장면에서는 수신 성공이 화면 표시를 보장하지 않습니다.
+- 각 클릭에 고유 이벤트 ID를 부여하고 기존 소스의 테스트 플래그로 전달해 동일 닉네임으로 반복 테스트할 수 있습니다. 실제 팔로우 수신 시각은 갱신하지 않습니다.
+- 테스트 요청은 실패 시 팝업에 오류를 표시하며 자동 재전송 대기열에 넣지 않습니다. 나중에 의도치 않은 테스트 알림이 뜨는 일을 방지합니다.
+- 기존 팔로우 중계와 팝업이 `obs-client.js`의 타임아웃·응답 검증 코드를 공유합니다. 추가 브라우저 권한은 필요하지 않습니다.
+- 팝업의 실행 중 잠금·오류·완료 처리를 공통 함수로 정리하고 잘못된 상태 JSON, 연결 소실과 구버전 플러그인을 검증합니다.
+
+사용 방법: OBS를 실행하고 현재 방송 장면에 알림 소스를 추가한 뒤, Chrome/Edge 확장 프로그램 메뉴에서 `OBSChzzk 리모컨 이벤트 브리지`를 클릭합니다. 연결됨을 확인하고 닉네임을 입력한 다음 `OBS에 테스트 알림 보내기`를 누릅니다. 검사 범위는 확장 프로그램 → OBS이며, 리모컨의 실제 팔로우 수신은 별도로 확인합니다.
+
 ## 0.6.0 변경 사항
 
 플러그인 버전은 `0.6.0`, 중계 확장 프로그램은 `0.3.0`입니다. 두 구성 요소를 함께 업데이트하고 확장 프로그램과 리모컨 페이지를 새로고침해야 연결 상태와 자동 재시도가 적용됩니다.
@@ -81,6 +94,8 @@ CHZZK remote-control Socket.IO
 - `src/plugin-main.cpp`: OBS 모듈 수명 주기와 포트 소유권 관리
 - `data/browser-relay/websocket-hook.js`: 치지직 스튜디오의 일반 탭과 팝업 페이지 컨텍스트에서 WebSocket 수신 프레임 감시
 - `data/browser-relay/relay.js`: 검증된 팔로우 이벤트를 localhost로 전달
+- `data/browser-relay/obs-client.js`: 팝업과 중계에서 공유하는 로컬 HTTP 클라이언트
+- `data/browser-relay/popup.*`: 확장 프로그램 연결 확인과 수동 테스트 알림 UI
 
 ## OBS 소스 설정
 
@@ -134,8 +149,9 @@ CHZZK remote-control Socket.IO
 플러그인은 IPv4 loopback의 `127.0.0.1:21345`에만 바인딩합니다.
 
 - `GET /publish?type=follow&nickname=<name>&eventId=<id>`: 팔로우 이벤트 발행. `eventId`는 이전 확장 프로그램 호환성을 위해 선택 사항이며, 지정된 ID는 최대 10분·4,096개 범위에서 중복 제거합니다. 정상·중복 수신 모두 `204`로 응답합니다.
+- `GET /publish?type=test&nickname=<name>&eventId=<id>`: 0.6.1부터 지원하는 테스트 발행. 닉네임은 최대 80자이며 소스의 닉네임 중복 제한을 우회하지만 같은 이벤트 ID의 재전송은 중복 제거합니다. 실제 팔로우 수신 시각을 갱신하지 않습니다.
 - `GET /heartbeat?session=<id>&pending=<count>&error=<code>`: 브라우저 중계 상태 갱신. 정상 응답은 `204`입니다.
-- `GET /status`: 로컬 연결 상태를 JSON으로 확인합니다. 닉네임이나 인증 정보는 포함하지 않습니다.
+- `GET /status`: 로컬 연결 상태를 JSON으로 확인합니다. 0.6.1부터 `testAlerts: true`로 테스트 지원 여부를 알립니다. 닉네임이나 인증 정보는 포함하지 않습니다.
 - `OPTIONS`: 위 경로에 대한 CORS·로컬 네트워크 사전 요청을 처리합니다.
 
 외부 서버나 클라우드 저장소를 사용하지 않습니다. 플러그인이 로드되지 않았거나 다른 프로세스가 포트를 점유하면 중계 서버 시작이 실패합니다.
@@ -211,13 +227,14 @@ cmake --build --preset windows-x64 --config Release
 ctest --test-dir build_x64 -C Release --output-on-failure
 ```
 
-테스트는 다섯 그룹으로 구성합니다.
+테스트는 여섯 그룹으로 구성합니다.
 
 - `alert-model`: 대기열·숨김 장면 게이트·페이드·크기 재진입과 미디어 배치
 - `alert-audio`: OBS API 대역으로 음원 표시 참조·독립 음량·일시 정지·캐시 해제 검증
 - `alert-http`: 실제 loopback 소켓의 분할 요청·거부 응답·이벤트 중복 ACK·상태 JSON
 - `alert-connection`: 연결 만료·세션 수 제한·마지막 응답 유지·중복 기록의 용량과 TTL 경계
 - `browser-relay`: Socket.IO 파싱·자동 재시도·타임아웃·대기열 만료와 중복 방지
+- `extension-popup`: 팝업 전송·연결 복구·구버전 안내·연속 클릭 방지·실패 표시와 응답 본문 타임아웃
 
 브라우저 테스트에는 Node.js가 필요합니다. 실제 OBS의 믹서·모니터링, 장면 전환과 다른 플러그인과의 상호작용은 OBS에서 별도로 확인해야 합니다.
 

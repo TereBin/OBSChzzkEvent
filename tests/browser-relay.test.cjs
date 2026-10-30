@@ -38,7 +38,7 @@ function environment() {
     }
     now = end; await flush();
   }
-  load('relay.js'); load('websocket-hook.js');
+  load('obs-client.js'); load('relay.js'); load('websocket-hook.js');
   const socket = new window.WebSocket('wss://test.invalid');
   return {
     window, socket, load, listeners, flush, advance,

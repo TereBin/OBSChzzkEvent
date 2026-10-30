@@ -43,10 +43,13 @@ AlertRequest parseAlertRequest(const QByteArray &requestLine)
 	if (parts[0] != "GET" || url.path() != QStringLiteral("/publish"))
 		return {"404 Not Found", false, {}};
 	const auto nickname = query.queryItemValue(QStringLiteral("nickname"), QUrl::FullyDecoded).trimmed();
-	if (query.queryItemValue(QStringLiteral("type")) != QStringLiteral("follow") || nickname.isEmpty())
+	const auto type = query.queryItemValue(QStringLiteral("type"));
+	if ((type != QStringLiteral("follow") && type != QStringLiteral("test")) || nickname.isEmpty())
+		return {"400 Bad Request", true, {}};
+	if (type == QStringLiteral("test") && nickname.size() > AlertProtocol::maxTestNicknameLength)
 		return {"400 Bad Request", true, {}};
 	AlertRequest result{"204 No Content", true, nickname};
-	result.kind = AlertRequest::Kind::Follow;
+	result.kind = type == QStringLiteral("test") ? AlertRequest::Kind::Test : AlertRequest::Kind::Follow;
 	result.eventId = query.queryItemValue("eventId", QUrl::FullyDecoded);
 	if (result.eventId.size() > AlertProtocol::maxEventIdLength)
 		return {"400 Bad Request", true, {}};

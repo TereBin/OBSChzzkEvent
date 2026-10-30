@@ -9,10 +9,12 @@
 
 static int published = 0;
 static QString received;
-void publishFollowToAlertSources(const QString &nickname)
+static bool receivedTest = false;
+void publishFollowToAlertSources(const QString &nickname, bool isTest)
 {
 	++published;
 	received = nickname;
+	receivedTest = isTest;
 }
 
 template<typename Predicate> void until(const char *label, Predicate predicate)
@@ -38,6 +40,12 @@ int main(int argc, char **argv)
 	      "Test User+");
 	CHECK(parseAlertRequest("GET /publish?type=follow&nickname=%20 HTTP/1.1\r\n").nickname.isEmpty());
 	CHECK(parseAlertRequest("GET /publish?type=donation&nickname=x HTTP/1.1\r\n").nickname.isEmpty());
+	CHECK(parseAlertRequest("GET /publish?type=test&nickname=Bridge+Test HTTP/1.1\r\n").kind ==
+	      AlertRequest::Kind::Test);
+	CHECK(parseAlertRequest("GET /publish?type=test&nickname=%20 HTTP/1.1\r\n").kind ==
+	      AlertRequest::Kind::Invalid);
+	CHECK(parseAlertRequest("GET /publish?type=test&nickname=" + QByteArray(81, 'a') + " HTTP/1.1\r\n").kind ==
+	      AlertRequest::Kind::Invalid);
 	CHECK(QByteArray(parseAlertRequest("GET /unknown HTTP/1.1\r\n").status).startsWith("404"));
 	CHECK(QByteArray(parseAlertRequest("garbage\r\n").status).startsWith("400"));
 	CHECK(parseAlertRequest("OPTIONS /publish HTTP/1.1\r\n").kind == AlertRequest::Kind::Preflight);
@@ -62,6 +70,7 @@ int main(int argc, char **argv)
 	until("split request response", [&] { return socket.bytesAvailable() > 0; });
 	CHECK(socket.readAll().startsWith("HTTP/1.1 204"));
 	CHECK(received == "Split Name");
+	CHECK(!receivedTest);
 	auto transact = [&](const QByteArray &line) {
 		QTcpSocket client;
 		client.connectToHost(QHostAddress::LocalHost, server.port());
@@ -77,6 +86,18 @@ int main(int argc, char **argv)
 	CHECK(transact("GET /heartbeat?session=test-bridge&pending=4 HTTP/1.1").startsWith("HTTP/1.1 204"));
 	CHECK(transact("GET /status HTTP/1.1").contains("\"pending\":4"));
 	CHECK(alertConnectionState().snapshot().bridges == 1);
+	CHECK(transact("GET /status HTTP/1.1").contains("\"testAlerts\":true"));
+	const auto lastFollow = alertConnectionState().snapshot().lastFollow;
+	CHECK(transact("GET /publish?type=test&nickname=Bridge+Test&eventId=test%3A1 HTTP/1.1")
+		      .startsWith("HTTP/1.1 204"));
+	CHECK(published == 3 && receivedTest && received == "Bridge Test");
+	CHECK(transact("GET /publish?type=test&nickname=Bridge+Test&eventId=test%3A1 HTTP/1.1")
+		      .startsWith("HTTP/1.1 204"));
+	CHECK(published == 3); // An accidentally repeated request still has an idempotent acknowledgement.
+	CHECK(transact("GET /publish?type=test&nickname=Bridge+Test&eventId=test%3A2 HTTP/1.1")
+		      .startsWith("HTTP/1.1 204"));
+	CHECK(published == 4 && receivedTest);
+	CHECK(alertConnectionState().snapshot().lastFollow == lastFollow);
 
 	QTcpSocket oversized;
 	QObject::connect(&oversized, &QTcpSocket::errorOccurred, &app,
@@ -86,7 +107,7 @@ int main(int argc, char **argv)
 	oversized.write(QByteArray(17 * 1024, 'x'));
 	until("oversized response", [&] { return oversized.bytesAvailable() > 0; });
 	CHECK(oversized.readAll().startsWith("HTTP/1.1 414"));
-	CHECK(published == 2);
+	CHECK(published == 4);
 	server.stop();
 	CHECK(server.port() == 0);
 	std::cout << "HTTP parsing and fragmented socket checks passed\n";

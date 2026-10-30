@@ -1,8 +1,12 @@
 {
   "manifest_version": 3,
   "name": "OBSChzzk 리모컨 이벤트 브리지",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "치지직 리모컨의 팔로우 WebSocket 이벤트를 OBSChzzk로 전달합니다.",
+  "action": {
+    "default_title": "OBS Chzzk Alerts 연결 테스트",
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://studio.chzzk.naver.com/*"],
@@ -12,7 +16,7 @@
     },
     {
       "matches": ["https://studio.chzzk.naver.com/*"],
-      "js": ["relay.js"],
+      "js": ["obs-client.js", "relay.js"],
       "run_at": "document_start"
     }
   ],

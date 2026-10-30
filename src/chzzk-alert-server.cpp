@@ -87,16 +87,21 @@ void ChzzkAlertServer::readRequest()
 
 void ChzzkAlertServer::handleRequest(AlertRequest &request)
 {
-	if (request.kind == AlertRequest::Kind::Follow && eventHistory_.accept(request.eventId)) {
-		publishFollowToAlertSources(request.nickname);
-		alertConnectionState().receivedFollow();
+	if (request.isAlert() && eventHistory_.accept(request.eventId)) {
+		publishFollowToAlertSources(request.nickname, request.isTest());
+		if (!request.isTest())
+			alertConnectionState().receivedFollow();
 	} else if (request.kind == AlertRequest::Kind::Heartbeat) {
 		alertConnectionState().heartbeat(request.session, request.pending, request.error);
 	} else if (request.kind == AlertRequest::Kind::Status) {
 		const auto state = alertConnectionState().snapshot();
-		QJsonObject body{{"listening", state.listening},   {"bridges", state.bridges},
-				 {"pending", state.pending},       {"lastContact", state.lastContact},
-				 {"lastFollow", state.lastFollow}, {"lastError", state.lastError}};
+		QJsonObject body{{"testAlerts", true},
+				 {"listening", state.listening},
+				 {"bridges", state.bridges},
+				 {"pending", state.pending},
+				 {"lastContact", state.lastContact},
+				 {"lastFollow", state.lastFollow},
+				 {"lastError", state.lastError}};
 		request.body = QJsonDocument(body).toJson(QJsonDocument::Compact);
 	}
 }

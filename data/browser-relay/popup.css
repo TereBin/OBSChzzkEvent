@@ -1,0 +1,18 @@
+:root { color-scheme: dark; font-family: "Malgun Gothic", system-ui, sans-serif; }
+body { width: 340px; margin: 0; background: #17191f; color: #f4f5f7; }
+main { padding: 20px; }
+h1 { margin: 0 0 12px; font-size: 20px; }
+p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.description, .hint { color: #bac1ce; }
+.hint { font-size: 12px; margin-bottom: 0; }
+form { display: grid; gap: 10px; margin-top: 20px; }
+label { font-size: 13px; font-weight: 600; }
+input, button { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #596174; border-radius: 6px; padding: 8px 10px; font: inherit; font-size: 13px; }
+input { background: #242832; color: #fff; }
+button { cursor: pointer; background: #303643; color: #fff; }
+#send { background: #00d5a1; border-color: #00d5a1; color: #08251d; font-weight: 700; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 2px solid #9fdbff; outline-offset: 3px; }
+[data-state="success"] { color: #73eac5; }
+[data-state="error"] { color: #ffacaf; }
+#result:empty { display: none; }

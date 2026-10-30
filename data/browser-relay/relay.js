@@ -1,6 +1,6 @@
 (() => {
   const RELAY_SOURCE = "obs-chzzk-websocket-relay";
-  const BASE_URL = "http://127.0.0.1:21345";
+  const { request } = globalThis.ObsChzzkClient;
   const MAX_PENDING = 100;
   const MAX_SEEN = 1024;
   const MAX_AGE_MS = 5 * 60 * 1000;
@@ -22,27 +22,6 @@
     return null;
   }
 
-  async function request(path, params) {
-    const controller = new AbortController();
-    let timer;
-    const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new Error("connection"));
-      }, 5000);
-    });
-    try {
-      const response = await Promise.race([
-        fetch(`${BASE_URL}/${path}?${params}`, {
-          method: "GET", mode: "cors", signal: controller.signal, cache: "no-store"
-        }),
-        timeout
-      ]);
-      if (response.status !== 204) throw new Error("http");
-    } finally {
-      clearTimeout(timer);
-    }
-  }
 
   function remember(key) {
     if (key === null) return;

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OBS Chzzk Alerts 연결 테스트</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="obs-client.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>OBS 연결 테스트</h1>
+    <p class="description">확장 프로그램에서 OBS로 테스트 알림을 보냅니다. 리모컨을 열지 않아도 사용할 수 있습니다.</p>
+    <p id="connection" role="status" aria-live="polite">OBS 연결 확인 중…</p>
+    <button id="check" type="button">연결 다시 확인</button>
+    <form id="test-form">
+      <label for="nickname">테스트 닉네임</label>
+      <input id="nickname" name="nickname" type="text" value="확장 프로그램 테스트" maxlength="80" required>
+      <button id="send" type="submit" disabled>OBS에 테스트 알림 보내기</button>
+    </form>
+    <p id="result" role="status" aria-live="polite"></p>
+    <p class="hint">확인 범위: 확장 프로그램 → OBS<br>방송 화면에서 알림 소스를 켜 두세요. 다른 장면에 있으면 돌아왔을 때 표시됩니다.</p>
+  </main>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "0.6.1"
+  #define MyAppVersion "0.6.2"
 #endif
 #ifndef BuildRoot
   #define BuildRoot "..\release\Release\obs-chzzk-alerts"
@@ -8,8 +8,12 @@
   #define OutputRoot "..\release"
 #endif
 
-#define MyAppName "OBS Chzzk Alerts"
-#define MyAppPublisher "OBS Chzzk Alerts contributors"
+#ifndef MyPackageName
+  #define MyPackageName "OBSChzzkEvent"
+#endif
+
+#define MyAppName "OBSChzzkEvent"
+#define MyAppPublisher "OBSChzzkEvent contributors"
 #define MyAppExeName "obs64.exe"
 
 [Setup]
@@ -17,11 +21,11 @@ AppId={{7D5887BA-B71E-4899-BC97-5A8EAE6B33F5}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={autopf}\OBS Chzzk Alerts
+DefaultDirName={autopf}\OBSChzzkEvent
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 OutputDir={#OutputRoot}
-OutputBaseFilename=obs-chzzk-alerts-{#MyAppVersion}-windows-x64-setup
+OutputBaseFilename={#MyPackageName}-{#MyAppVersion}-windows-x64-setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern

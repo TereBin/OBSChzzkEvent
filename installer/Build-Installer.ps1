@@ -28,10 +28,10 @@ if (-not $IsccPath -or -not (Test-Path -LiteralPath $IsccPath)) {
 }
 
 $IssPath = Join-Path $PSScriptRoot 'obs-chzzk-alerts.iss'
-& $IsccPath "/DMyAppVersion=$($BuildSpec.version)" "/DBuildRoot=$BuildRoot" "/DOutputRoot=$OutputRoot" $IssPath
+& $IsccPath "/DMyAppVersion=$($BuildSpec.version)" "/DMyPackageName=$($BuildSpec.packageName)" "/DBuildRoot=$BuildRoot" "/DOutputRoot=$OutputRoot" $IssPath
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup failed with exit code $LASTEXITCODE."
 }
 
-$Installer = Join-Path $OutputRoot "obs-chzzk-alerts-$($BuildSpec.version)-windows-x64-setup.exe"
+$Installer = Join-Path $OutputRoot "$($BuildSpec.packageName)-$($BuildSpec.version)-windows-x64-setup.exe"
 Write-Output $Installer

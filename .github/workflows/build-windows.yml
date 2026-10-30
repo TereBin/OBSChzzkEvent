@@ -25,5 +25,5 @@ jobs:
       - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: obs-chzzk-alerts-windows-x64
+          name: OBSChzzkEvent-windows-x64
           path: release/Release/obs-chzzk-alerts

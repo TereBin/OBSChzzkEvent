@@ -9,11 +9,16 @@
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
-OBS_MODULE_AUTHOR("OBS Chzzk Alerts contributors")
+OBS_MODULE_AUTHOR("OBSChzzkEvent contributors")
 
 namespace {
 std::unique_ptr<ChzzkAlertServer> g_alertServer;
 } // namespace
+
+const char *obs_module_name(void)
+{
+	return obs_module_text("Plugin.Name");
+}
 
 const char *obs_module_description(void)
 {

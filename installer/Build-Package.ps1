@@ -25,9 +25,9 @@ if ($PluginVersion -ne $BuildSpec.version) {
 
 & (Join-Path $PSScriptRoot 'Build-Installer.ps1') -Configuration $Configuration -IsccPath $IsccPath
 
-$ArchivePath = Join-Path $OutputRoot "$($BuildSpec.name)-$($BuildSpec.version)-windows-x64.zip"
+$ArchivePath = Join-Path $OutputRoot "$($BuildSpec.packageName)-$($BuildSpec.version)-windows-x64.zip"
 Compress-Archive -LiteralPath (Join-Path $PackageRoot 'bin'), (Join-Path $PackageRoot 'data') -DestinationPath $ArchivePath -Force
-$InstallerPath = Join-Path $OutputRoot "$($BuildSpec.name)-$($BuildSpec.version)-windows-x64-setup.exe"
+$InstallerPath = Join-Path $OutputRoot "$($BuildSpec.packageName)-$($BuildSpec.version)-windows-x64-setup.exe"
 $Checksums = foreach ($ArtifactPath in @($InstallerPath, $ArchivePath)) {
     $Hash = (Get-FileHash -LiteralPath $ArtifactPath -Algorithm SHA256).Hash.ToLowerInvariant()
     '{0}  {1}' -f $Hash, (Split-Path -Leaf $ArtifactPath)

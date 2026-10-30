@@ -235,9 +235,9 @@ private:
 	float elapsed = 0.0f;
 	bool active = false;
 	AlertSceneGate sceneGate;
-	AlertVisual text{kTextSourceId, "OBS Chzzk Alerts Text", "OBS Chzzk Alerts Text Opacity"};
-	AlertVisual shadowText{kTextSourceId, "OBS Chzzk Alerts Shadow", "OBS Chzzk Alerts Shadow Opacity"};
-	AlertVisual media{kImageSourceId, "OBS Chzzk Alerts Media", "OBS Chzzk Alerts Media Opacity"};
+	AlertVisual text{kTextSourceId, "OBSChzzkEvent Text", "OBSChzzkEvent Text Opacity"};
+	AlertVisual shadowText{kTextSourceId, "OBSChzzkEvent Shadow", "OBSChzzkEvent Shadow Opacity"};
+	AlertVisual media{kImageSourceId, "OBSChzzkEvent Media", "OBSChzzkEvent Media Opacity"};
 	ChzzkAlertAudio alertAudio;
 };
 

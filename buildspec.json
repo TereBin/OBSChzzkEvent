@@ -34,9 +34,10 @@
     }
   },
   "name": "obs-chzzk-alerts",
-  "displayName": "OBS Chzzk Alerts",
-  "version": "0.6.1",
+  "displayName": "OBSChzzkEvent",
+  "packageName": "OBSChzzkEvent",
+  "version": "0.6.2",
   "author": "TereBin",
-  "website": "https://github.com/TereBin/obs-chzzk-alerts",
+  "website": "https://github.com/TereBin/OBSChzzkEvent",
   "email": "TereBin@users.noreply.github.com"
 }

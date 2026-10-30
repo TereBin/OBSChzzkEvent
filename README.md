@@ -1,11 +1,17 @@
-# OBS Chzzk Alerts
+# OBSChzzkEvent
 
 치지직 스트리머 스튜디오 리모컨의 팔로우 이벤트를 OBS 전용 알림 소스로 전달하는 Windows용 OBS 플러그인입니다.
 
-일반 사용자를 위한 설치 파일과 사용 설명서는 [배포 저장소](https://github.com/TereBin/obs-chzzk-alerts-releases)에서 제공합니다. 이 저장소는 소스 코드, 프로토콜 구조와 개발 문서를 관리합니다.
+일반 사용자를 위한 설치 파일과 사용 설명서는 [배포 저장소](https://github.com/TereBin/OBSChzzkEvent-Releases)에서 제공합니다. 이 저장소는 소스 코드, 프로토콜 구조와 개발 문서를 관리합니다.
 
-- 배포 패키지: [OBS Chzzk Alerts Releases](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)
-- 소스 저장소: [OBS Chzzk Alerts](https://github.com/TereBin/obs-chzzk-alerts)
+- 배포 패키지: [OBSChzzkEvent Releases](https://github.com/TereBin/OBSChzzkEvent-Releases/releases/latest)
+- 소스 저장소: [OBSChzzkEvent](https://github.com/TereBin/OBSChzzkEvent)
+
+## 0.6.2 이름 변경
+
+프로그램과 소스 저장소 이름을 `OBSChzzkEvent`, 배포 저장소 이름을 `OBSChzzkEvent-Releases`로 변경했습니다. 플러그인 `0.6.2`, 확장 프로그램 `0.4.1`부터 새 이름을 사용합니다.
+
+기존 OBS 장면과 소스 설정, 연결 독 배치, 확장 프로그램 등록을 유지하기 위해 내부 모듈명 `obs-chzzk-alerts`, DLL·데이터 경로, 소스 ID와 설치 프로그램 AppId는 유지합니다. `buildspec.json`의 `name`은 호환용 모듈명이고, `displayName`은 프로그램 표시 이름, `packageName`은 배포 파일 접두사입니다. 새 설치 파일은 `OBSChzzkEvent-0.6.2-windows-x64-setup.exe`입니다.
 
 ## 0.6.1 변경 사항
 
@@ -18,7 +24,7 @@
 - 기존 팔로우 중계와 팝업이 `obs-client.js`의 타임아웃·응답 검증 코드를 공유합니다. 추가 브라우저 권한은 필요하지 않습니다.
 - 팝업의 실행 중 잠금·오류·완료 처리를 공통 함수로 정리하고 잘못된 상태 JSON, 연결 소실과 구버전 플러그인을 검증합니다.
 
-사용 방법: OBS를 실행하고 현재 방송 장면에 알림 소스를 추가한 뒤, Chrome/Edge 확장 프로그램 메뉴에서 `OBSChzzk 리모컨 이벤트 브리지`를 클릭합니다. 연결됨을 확인하고 닉네임을 입력한 다음 `OBS에 테스트 알림 보내기`를 누릅니다. 검사 범위는 확장 프로그램 → OBS이며, 리모컨의 실제 팔로우 수신은 별도로 확인합니다.
+사용 방법: OBS를 실행하고 현재 방송 장면에 알림 소스를 추가한 뒤, Chrome/Edge 확장 프로그램 메뉴에서 `OBSChzzkEvent 리모컨 이벤트 브리지`를 클릭합니다. 연결됨을 확인하고 닉네임을 입력한 다음 `OBS에 테스트 알림 보내기`를 누릅니다. 검사 범위는 확장 프로그램 → OBS이며, 리모컨의 실제 팔로우 수신은 별도로 확인합니다.
 
 ## 0.6.0 변경 사항
 
@@ -38,7 +44,7 @@
 
 ## 0.5.0 변경 사항
 
-`0.5.0`에 동봉된 중계 확장 프로그램은 `0.2.2`입니다. 공개 설치 파일의 버전은 [배포 저장소의 릴리스 페이지](https://github.com/TereBin/obs-chzzk-alerts-releases/releases)에서 확인할 수 있습니다.
+`0.5.0`에 동봉된 중계 확장 프로그램은 `0.2.2`입니다. 공개 설치 파일의 버전은 [배포 저장소의 릴리스 페이지](https://github.com/TereBin/OBSChzzkEvent-Releases/releases)에서 확인할 수 있습니다.
 
 - 기본 알림음 3종을 동봉하고 기존 사용자 음원 선택을 유지합니다.
 - 소스 크기 조회를 원자적 스냅샷으로 분리해 설정 변경 중 동기 재진입으로 발생하던 종료를 수정했습니다.
@@ -63,7 +69,7 @@
 
 ## 저장소 역할
 
-이 저장소는 플러그인과 브라우저 중계 확장 프로그램의 소스, 빌드 설정과 기술 문서를 관리합니다. 일반 사용자는 소스를 직접 빌드할 필요 없이 [배포 저장소의 최신 릴리스](https://github.com/TereBin/obs-chzzk-alerts-releases/releases/latest)를 설치하면 됩니다.
+이 저장소는 플러그인과 브라우저 중계 확장 프로그램의 소스, 빌드 설정과 기술 문서를 관리합니다. 일반 사용자는 소스를 직접 빌드할 필요 없이 [배포 저장소의 최신 릴리스](https://github.com/TereBin/OBSChzzkEvent-Releases/releases/latest)를 설치하면 됩니다.
 
 ## 아키텍처
 
@@ -196,7 +202,7 @@ cmake -S . -B build_x64 -G "Visual Studio 17 2022" -A x64 `
 - 확장 프로그램 버전: `data/browser-relay/manifest.json`
 - Windows 설치 구성: `installer/obs-chzzk-alerts.iss`
 - CI 구성: `.github/workflows/build-windows.yml`
-- 사용자 배포: [obs-chzzk-alerts-releases](https://github.com/TereBin/obs-chzzk-alerts-releases)
+- 사용자 배포: [OBSChzzkEvent-Releases](https://github.com/TereBin/OBSChzzkEvent-Releases)
 
 릴리스 설치 파일은 현재 코드 서명되지 않았습니다. 배포 시 설치 파일, 수동 설치 ZIP과 `SHA256SUMS.txt`를 함께 게시합니다.
 
@@ -251,7 +257,7 @@ ctest --test-dir build_x64 -C Release --output-on-failure
 
 ## 문제 보고
 
-오류 보고와 기능 제안은 [OBS Chzzk Alerts Issues](https://github.com/TereBin/obs-chzzk-alerts/issues)를 이용해 주세요. 문제 발생 직후 OBS 로그에서 `[obs-chzzk-alerts]`가 포함된 줄과 Chrome/Edge 개발자 도구의 오류를 함께 제공하면 원인 확인에 도움이 됩니다.
+오류 보고와 기능 제안은 [OBSChzzkEvent Issues](https://github.com/TereBin/OBSChzzkEvent/issues)를 이용해 주세요. 문제 발생 직후 OBS 로그에서 `[obs-chzzk-alerts]`가 포함된 줄과 Chrome/Edge 개발자 도구의 오류를 함께 제공하면 원인 확인에 도움이 됩니다.
 
 WebSocket URL의 `auth` 값, 치지직 쿠키 또는 전체 HAR 파일은 공개 이슈에 첨부하지 마세요.
 

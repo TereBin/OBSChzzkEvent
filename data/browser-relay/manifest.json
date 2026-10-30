@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "OBSChzzk 리모컨 이벤트 브리지",
-  "version": "0.4.0",
-  "description": "치지직 리모컨의 팔로우 WebSocket 이벤트를 OBSChzzk로 전달합니다.",
+  "name": "OBSChzzkEvent 리모컨 이벤트 브리지",
+  "version": "0.4.1",
+  "description": "치지직 리모컨의 팔로우 WebSocket 이벤트를 OBSChzzkEvent로 전달합니다.",
   "action": {
-    "default_title": "OBS Chzzk Alerts 연결 테스트",
+    "default_title": "OBSChzzkEvent 연결 테스트",
     "default_popup": "popup.html"
   },
   "content_scripts": [

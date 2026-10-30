@@ -132,7 +132,7 @@ bool ChzzkAlertAudio::createSource(const std::string &audioFile)
 	obs_data_set_bool(settings.get(), "looping", false);
 	obs_data_set_bool(settings.get(), "restart_on_activate", true);
 	obs_data_set_bool(settings.get(), "close_when_inactive", false);
-	ObsSourcePtr created(obs_source_create_private(kAudioSourceId, "OBS Chzzk Alerts Sound", settings.get()));
+	ObsSourcePtr created(obs_source_create_private(kAudioSourceId, "OBSChzzkEvent Sound", settings.get()));
 	source = created.get();
 	if (!source)
 		return false;

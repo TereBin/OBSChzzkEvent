@@ -24,7 +24,7 @@
   function failure(error) {
     if (error.message === "nickname") return "테스트 닉네임을 1~80자로 입력해 주세요.";
     if (error.message === "invalid" || error.status === 400 || error.status === 404) {
-      return "OBS Chzzk Alerts 0.6.1 이상으로 업데이트한 뒤 OBS를 다시 실행해 주세요.";
+      return "OBSChzzkEvent 0.6.1 이상으로 업데이트한 뒤 OBS를 다시 실행해 주세요.";
     }
     if (error.message === "http") return `OBS가 요청을 거부했습니다 (HTTP ${error.status}). 플러그인 상태를 확인해 주세요.`;
     return "OBS에 연결하지 못했습니다. OBS 실행 여부와 치지직 알림 플러그인 설치 상태를 확인해 주세요.";
